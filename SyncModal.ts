@@ -1,0 +1,107 @@
+import { App, Modal, ButtonComponent } from "obsidian";
+import type AnkiSyncPlugin from "./main";
+
+export type LogLevel = "info" | "warn" | "error";
+
+export interface LogEntry {
+	level: LogLevel;
+	message: string;
+	timestamp: number;
+}
+
+const MAX_LOG_ENTRIES = 200;
+
+export class SyncModal extends Modal {
+	logEntries: LogEntry[] = [];
+	logEl: HTMLPreElement | null = null;
+	runButton: ButtonComponent | null = null;
+	private plugin: AnkiSyncPlugin;
+
+	constructor(app: App, plugin: AnkiSyncPlugin) {
+		super(app);
+		this.plugin = plugin;
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.addClass("anki-sync-modal");
+		contentEl.createEl("h2", { text: "Anki Sync" });
+
+		contentEl.createEl("div", { cls: "anki-sync-status" }).setText("Idle");
+
+		const buttonContainer = contentEl.createDiv();
+		this.runButton = new ButtonComponent(buttonContainer)
+			.setButtonText("Run sync")
+			.setCta()
+			.onClick(() => this.onRunSync());
+		buttonContainer.createEl("br");
+
+		this.logEl = contentEl.createEl("pre", { cls: "anki-sync-log" });
+		this.logEl.setText("Log output will appear here after you run a sync.");
+		this.refreshLogDisplay();
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+		this.logEl = null;
+		this.runButton = null;
+	}
+
+	appendLog(level: LogLevel, message: string): void {
+		this.logEntries.push({ level, message, timestamp: Date.now() });
+		if (this.logEntries.length > MAX_LOG_ENTRIES) this.logEntries.shift();
+		this.refreshLogDisplay();
+	}
+
+	clearLog(): void {
+		this.logEntries = [];
+		this.refreshLogDisplay();
+	}
+
+	private refreshLogDisplay(): void {
+		if (!this.logEl) return;
+		if (this.logEntries.length === 0) {
+			this.logEl.setText("Log output will appear here after you run a sync.");
+			this.logEl.querySelectorAll(".anki-sync-log-entry").forEach((el) => el.remove());
+			return;
+		}
+		this.logEl.empty();
+		this.logEl.setText("");
+		for (const entry of this.logEntries) {
+			const line = this.logEl.createEl("div", { cls: `anki-sync-log-entry ${entry.level}` });
+			const time = new Date(entry.timestamp).toLocaleTimeString();
+			line.setText(`[${time}] [${entry.level.toUpperCase()}] ${entry.message}`);
+		}
+		this.logEl.scrollTop = this.logEl.scrollHeight;
+	}
+
+	setRunning(running: boolean): void {
+		const status = this.contentEl.querySelector(".anki-sync-status");
+		if (status) status.setText(running ? "Running…" : "Idle");
+		if (this.runButton) this.runButton.setDisabled(running);
+	}
+
+	async onRunSync(): Promise<void> {
+		if (this.plugin.settings.deleteRemovedNotes) {
+			if (
+				!confirm(
+					"This sync will remove notes from Anki that no longer have a matching note in your vault. Continue?"
+				)
+			)
+				return;
+		}
+
+		this.setRunning(true);
+		this.clearLog();
+		this.appendLog("info", "Starting sync…");
+		try {
+			await this.plugin.runFullSync((level, message) => this.appendLog(level, message));
+			this.appendLog("info", "Sync finished.");
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			this.appendLog("error", `Sync failed: ${msg}`);
+		} finally {
+			this.setRunning(false);
+		}
+	}
+}

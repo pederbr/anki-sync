@@ -1,0 +1,25 @@
+{
+	"name": "obsidian-anki-sync",
+	"version": "0.1.0",
+	"description": "Sync Obsidian notes to Anki via AnkiConnect with customizable card extraction",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+	},
+	"keywords": [],
+	"author": "Pederbr",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/markdown-it": "^14.1.2",
+		"@types/node": "^16.11.6",
+		"builtin-modules": "3.3.0",
+		"esbuild": "0.17.3",
+		"obsidian": "latest",
+		"tslib": "2.4.0",
+		"typescript": "4.7.4"
+	},
+	"dependencies": {
+		"markdown-it": "^14.0.0"
+	}
+}
