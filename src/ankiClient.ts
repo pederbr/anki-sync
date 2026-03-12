@@ -1,9 +1,10 @@
+import { requestUrl } from "obsidian";
+
 const ANKI_CONNECT_VERSION = 6;
 
 export interface AnkiClientConfig {
 	baseUrl: string;
 	basicModel: string;
-	clozeModel: string;
 }
 
 interface AnkiResponse<T = unknown> {
@@ -12,7 +13,14 @@ interface AnkiResponse<T = unknown> {
 }
 
 function cleanText(t: string): string {
-	return t.replace(/[\x00-\x1f\x7f-\x9f]/g, "");
+	let out = "";
+	for (let i = 0; i < t.length; i++) {
+		const code = t.charCodeAt(i);
+		if (code >= 32 && code !== 127) {
+			out += t[i]!;
+		}
+	}
+	return out;
 }
 
 export async function invoke<T = unknown>(
@@ -21,16 +29,17 @@ export async function invoke<T = unknown>(
 	params: Record<string, unknown> = {}
 ): Promise<T> {
 	const payload = { action, version: ANKI_CONNECT_VERSION, params };
-	const res = await fetch(baseUrl, {
+	const res = await requestUrl({
+		url: baseUrl,
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(payload),
 	});
-	const data = (await res.json()) as AnkiResponse<T>;
+	const data = res.json as AnkiResponse<T>;
 	if (data.error != null) {
 		throw new Error(`AnkiConnect error in ${action}: ${data.error}`);
 	}
-	return data.result as T;
+	return data.result;
 }
 
 export async function checkAnkiRunning(baseUrl: string): Promise<boolean> {
@@ -61,7 +70,9 @@ export async function findExistingNote(
 		const fuzzy = cleaned.slice(0, 30).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 		noteIds = await invoke<number[]>(baseUrl, "findNotes", { query: `"${fuzzy}"` });
 	}
-	return noteIds.length > 0 ? noteIds[0] : null;
+	if (noteIds.length === 0) return null;
+	const id = noteIds[0];
+	return typeof id === "number" ? id : null;
 }
 
 export async function addNote(
@@ -151,56 +162,6 @@ export async function appendBasic(
 		return -1;
 	}
 }
-
-function escapeForQuery(text: string): string {
-	return text.replace(/"/g, '\\"');
-}
-
-export async function upsertCloze(
-	config: AnkiClientConfig,
-	text: string,
-	deck: string,
-	tags: string[]
-): Promise<number> {
-	await ensureDeck(config.baseUrl, deck);
-	const snippet = escapeForQuery(text);
-	const query = `deck:"${deck}" " ${snippet} "`;
-	const noteIds = await invoke<number[]>(config.baseUrl, "findNotes", { query });
-	if (noteIds.length > 0) {
-		const id = noteIds[0];
-		await updateNoteFields(config.baseUrl, id, { Text: text });
-		await addTagsToNotes(config.baseUrl, [id], tags.join(" "));
-		return id;
-	}
-	return await addNote(
-		config.baseUrl,
-		deck,
-		config.clozeModel,
-		{ Text: text, Extra: "" },
-		tags
-	);
-}
-
-export async function appendCloze(
-	config: AnkiClientConfig,
-	text: string,
-	deck: string,
-	tags: string[]
-): Promise<number> {
-	await ensureDeck(config.baseUrl, deck);
-	const snippet = escapeForQuery(text);
-	const query = `deck:"${deck}" " ${snippet} "`;
-	const noteIds = await invoke<number[]>(config.baseUrl, "findNotes", { query });
-	if (noteIds.length > 0) return -1;
-	return await addNote(
-		config.baseUrl,
-		deck,
-		config.clozeModel,
-		{ Text: text, Extra: "" },
-		tags
-	);
-}
-
 export async function storeMediaFile(
 	baseUrl: string,
 	filename: string,

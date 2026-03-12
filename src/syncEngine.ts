@@ -50,7 +50,6 @@ export async function runFullSync(
 	const config: anki.AnkiClientConfig = {
 		baseUrl: settings.ankiConnectUrl,
 		basicModel: settings.basicModel,
-		clozeModel: settings.clozeModel,
 	};
 
 	const imageIndex = indexImageFiles(vault, settings.vaultRootSubpath, excludedFolders);
@@ -61,7 +60,6 @@ export async function runFullSync(
 
 	const keptIds = new Set<number>();
 	let totalBasic = 0;
-	let totalCloze = 0;
 
 	const uploadedMedia = new Set<string>();
 	const storeMedia = async (file: TFile): Promise<string> => {
@@ -88,8 +86,9 @@ export async function runFullSync(
 		let content: string;
 		try {
 			content = await vault.read(file);
-		} catch (e) {
-			log("error", `Could not read ${file.path}: ${e}`);
+		} catch (e: unknown) {
+			const message = e instanceof Error ? e.message : String(e);
+			log("error", `Could not read ${file.path}: ${message}`);
 			continue;
 		}
 
@@ -127,5 +126,5 @@ export async function runFullSync(
 		if (deleted > 0) log("info", `Deleted ${deleted} notes no longer in vault.`);
 	}
 
-	log("info", `Sync complete. Basic: ${totalBasic}, Cloze: ${totalCloze}.`);
+	log("info", `Sync complete. Basic: ${totalBasic}.`);
 }

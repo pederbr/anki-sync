@@ -35,13 +35,15 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl("h3", { text: "Anki" });
+		new Setting(containerEl).setName("Anki").setHeading();
 		new Setting(containerEl)
-			.setName("AnkiConnect URL")
-			.setDesc("URL where AnkiConnect is listening (default: http://localhost:8765)")
+			.setName("Anki connect address")
+			.setDesc(
+				"Address where the app is listening" + " (default: http://localhost:8765)."
+			)
 			.addText((text) =>
 				text
-					.setPlaceholder("http://localhost:8765")
+					.setPlaceholder("Enter server address")
 					.setValue(this.plugin.settings.ankiConnectUrl)
 					.onChange(async (value) => {
 						this.plugin.settings.ankiConnectUrl = value;
@@ -58,15 +60,6 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 				})
 			);
 		new Setting(containerEl)
-			.setName("Cloze model name")
-			.setDesc("Anki note type for cloze cards")
-			.addText((text) =>
-				text.setPlaceholder("Cloze").setValue(this.plugin.settings.clozeModel).onChange(async (value) => {
-					this.plugin.settings.clozeModel = value;
-					await this.plugin.saveSettings();
-				})
-			);
-		new Setting(containerEl)
 			.setName("Default deck prefix")
 			.setDesc("Prefix for generated deck names (e.g. Obsidian)")
 			.addText((text) =>
@@ -79,7 +72,8 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl("h3", { text: "Sync behavior" }).addClass("anki-sync-settings-section");
+		const syncBehaviorSection = new Setting(containerEl).setName("Sync behavior").setHeading();
+		syncBehaviorSection.settingEl.addClass("anki-sync-settings-section");
 		new Setting(containerEl)
 			.setName("Card update mode")
 			.setDesc("Replace: update existing notes by front text. Append: only create new notes, never update.")
@@ -105,10 +99,13 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl("h3", { text: "Card extraction" }).addClass("anki-sync-settings-section");
+		const cardExtractionSection = new Setting(containerEl)
+			.setName("Card extraction")
+			.setHeading();
+		cardExtractionSection.settingEl.addClass("anki-sync-settings-section");
 		new Setting(containerEl)
 			.setName("Section heading level")
-			.setDesc("Heading level that defines card boundaries (H1–H6). Each such heading becomes one card.")
+			.setDesc("Heading level that defines card boundaries; each such heading becomes one card (h1–h6).")
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOption("1", "H1")
@@ -125,7 +122,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 			);
 		new Setting(containerEl)
 			.setName("Create intro card")
-			.setDesc("Create a card for content before the first section heading (front = H1 or filename).")
+			.setDesc("Create a card for content before the first section heading (front uses h1 or filename).")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.createIntroCard)
@@ -135,7 +132,8 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl("h3", { text: "Paths & tags" }).addClass("anki-sync-settings-section");
+		const pathsTagsSection = new Setting(containerEl).setName("Paths & tags").setHeading();
+		pathsTagsSection.settingEl.addClass("anki-sync-settings-section");
 		new Setting(containerEl)
 			.setName("Vault root subpath")
 			.setDesc("Only sync notes under this path (relative to vault root). Leave empty for entire vault.")
@@ -150,7 +148,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 			);
 		new Setting(containerEl)
 			.setName("Excluded folder names")
-			.setDesc("Comma-separated folder names to skip (e.g. LUB, templates)")
+			.setDesc("Comma-separated folder names to skip (for example lub, templates).")
 			.addText((text) =>
 				text
 					.setPlaceholder("LUB")
@@ -165,7 +163,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 			.setDesc("Space-separated tags added to all synced notes (used to identify managed notes for deletion).")
 			.addText((text) =>
 				text
-					.setPlaceholder("obsidian")
+					.setPlaceholder("Enter global tags")
 					.setValue(this.plugin.settings.globalTags)
 					.onChange(async (value) => {
 						this.plugin.settings.globalTags = value;

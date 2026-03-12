@@ -3,9 +3,7 @@ export type CardUpdateMode = "replace" | "append";
 export interface PluginSettings {
 	ankiConnectUrl: string;
 	basicModel: string;
-	clozeModel: string;
 	defaultBasicDeckPrefix: string;
-	defaultClozeDeckPrefix: string;
 	cardUpdateMode: CardUpdateMode;
 	deleteRemovedNotes: boolean;
 	sectionHeadingLevel: 1 | 2 | 3 | 4 | 5 | 6;
@@ -18,9 +16,7 @@ export interface PluginSettings {
 export const DEFAULT_SETTINGS: PluginSettings = {
 	ankiConnectUrl: "http://localhost:8765",
 	basicModel: "Basic",
-	clozeModel: "Cloze",
 	defaultBasicDeckPrefix: "Obsidian",
-	defaultClozeDeckPrefix: "Obsidian::Cloze",
 	cardUpdateMode: "replace",
 	deleteRemovedNotes: true,
 	sectionHeadingLevel: 2,

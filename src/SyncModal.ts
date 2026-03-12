@@ -25,7 +25,7 @@ export class SyncModal extends Modal {
 	onOpen(): void {
 		const { contentEl } = this;
 		contentEl.addClass("anki-sync-modal");
-		contentEl.createEl("h2", { text: "Anki Sync" });
+		contentEl.createEl("h2", { text: "Anki sync" });
 
 		contentEl.createEl("div", { cls: "anki-sync-status" }).setText("Idle");
 
@@ -83,12 +83,37 @@ export class SyncModal extends Modal {
 
 	async onRunSync(): Promise<void> {
 		if (this.plugin.settings.deleteRemovedNotes) {
-			if (
-				!confirm(
-					"This sync will remove notes from Anki that no longer have a matching note in your vault. Continue?"
-				)
-			)
-				return;
+			const confirmed = await new Promise<boolean>((resolve) => {
+				const confirmModal = new (class extends Modal {
+					constructor(app: App) {
+						super(app);
+					}
+					onOpen(): void {
+						const { contentEl } = this;
+						contentEl.empty();
+						contentEl.createEl("h2", { text: "Confirm sync" });
+						contentEl.createEl("p", {
+							text: "This sync will remove notes from Anki that no longer have a matching note in your vault. Continue?",
+						});
+						const buttons = contentEl.createDiv({ cls: "anki-sync-confirm-buttons" });
+						new ButtonComponent(buttons)
+							.setButtonText("Cancel")
+							.onClick(() => {
+								this.close();
+								resolve(false);
+							});
+						new ButtonComponent(buttons)
+							.setButtonText("Continue")
+							.setCta()
+							.onClick(() => {
+								this.close();
+								resolve(true);
+							});
+					}
+				})(this.app);
+				confirmModal.open();
+			});
+			if (!confirmed) return;
 		}
 
 		this.setRunning(true);

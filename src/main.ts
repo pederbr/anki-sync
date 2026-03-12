@@ -20,7 +20,7 @@ export default class AnkiSyncPlugin extends Plugin {
 		});
 		this.addCommand({
 			id: "open-sync-view",
-			name: "Open Anki Sync",
+			name: "Open sync view",
 			callback: () => this.openSyncModal(),
 		});
 		this.addSettingTab(new AnkiSyncSettingTab(this.app, this));
@@ -29,7 +29,9 @@ export default class AnkiSyncPlugin extends Plugin {
 	onunload() {}
 
 	async loadSettings() {
-		this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+		const raw = (await this.loadData()) as unknown;
+		const loaded = (raw ?? {}) as Partial<PluginSettings>;
+		this.settings = { ...DEFAULT_SETTINGS, ...loaded };
 	}
 
 	async saveSettings() {

@@ -64,8 +64,10 @@ export function resolveImagePath(
 }
 
 function replaceWikilinks(text: string): string {
-	return text.replace(/\[\[([^|\]]+)(?:\|([^\]]+))?\]\]/g, (_, target, alias) =>
-		alias != null ? alias.trim() : target.trim()
+	return text.replace(
+		/\[\[([^|\]]+)(?:\|([^\]]+))?\]\]/g,
+		(_match: string, target: string, alias?: string) =>
+			alias != null ? alias.trim() : target.trim()
 	);
 }
 
@@ -86,8 +88,8 @@ export async function replaceImageSyntaxMarkdown(
 	const newLines: string[] = [];
 	for (const line of lines) {
 		const m = line.trim().match(pastedRe);
-		if (m) {
-			newLines.push(await imgForRef(m[1].trim()));
+		if (m != null) {
+			newLines.push(await imgForRef(m[1]!.trim()));
 		} else {
 			newLines.push(line);
 		}
@@ -96,7 +98,7 @@ export async function replaceImageSyntaxMarkdown(
 
 	const obsidianRe = /!\[\[([^|\]]+)(?:\|([^]]*))?\]\]/g;
 	const obsidianMatches: { full: string; ref: string; alt: string }[] = [];
-	let obsidianM;
+	let obsidianM: RegExpExecArray | null;
 	while ((obsidianM = obsidianRe.exec(out)) !== null) {
 		obsidianMatches.push({
 			full: obsidianM[0],
@@ -107,13 +109,16 @@ export async function replaceImageSyntaxMarkdown(
 	const obsidianReplacements = await Promise.all(
 		obsidianMatches.map((m) => imgForRef(m.ref, m.alt))
 	);
-	for (let i = 0; i < obsidianMatches.length; i++) {
-		out = out.replace(obsidianMatches[i].full, obsidianReplacements[i]);
-	}
+	obsidianMatches.forEach((match, index) => {
+		const replacement = obsidianReplacements[index];
+		if (replacement) {
+			out = out.replace(match.full, replacement);
+		}
+	});
 
 	const mdImgRe = /!\[([^\]]*)\]\(([^)]+)\)/g;
 	const mdImgMatches: { full: string; ref: string; alt: string }[] = [];
-	let mdImgM;
+	let mdImgM: RegExpExecArray | null;
 	while ((mdImgM = mdImgRe.exec(out)) !== null) {
 		mdImgMatches.push({
 			full: mdImgM[0],
@@ -124,9 +129,12 @@ export async function replaceImageSyntaxMarkdown(
 	const mdImgReplacements = await Promise.all(
 		mdImgMatches.map((m) => imgForRef(m.ref, m.alt))
 	);
-	for (let i = 0; i < mdImgMatches.length; i++) {
-		out = out.replace(mdImgMatches[i].full, mdImgReplacements[i]);
-	}
+	mdImgMatches.forEach((match, index) => {
+		const replacement = mdImgReplacements[index];
+		if (replacement) {
+			out = out.replace(match.full, replacement);
+		}
+	});
 
 	return out;
 }
@@ -174,15 +182,15 @@ function protectLatex(text: string): { text: string; stored: string[] } {
 		stored.push(m);
 		return placeholder(stored.length - 1);
 	});
-	out = out.replace(/\\\[[^\]]*?\\\]/gs, (m) => {
+	out = out.replace(/\\\[[\s\S]*?\\\]/g, (m: string) => {
 		stored.push(m);
 		return placeholder(stored.length - 1);
 	});
-	out = out.replace(/\$\$[\s\S]*?\$\$/g, (m) => {
+	out = out.replace(/\$\$[\s\S]*?\$\$/g, (m: string) => {
 		stored.push(m);
 		return placeholder(stored.length - 1);
 	});
-	out = out.replace(/\$(?!\s)([^$\n]+?)(?<!\s)\$/g, (m, inner) => {
+	out = out.replace(/\$(?!\s)([^$\n]+?)(?<!\s)\$/g, (m: string, inner: string) => {
 		if (isProbablyMath(inner)) {
 			stored.push(m);
 			return placeholder(stored.length - 1);
