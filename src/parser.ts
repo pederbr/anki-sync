@@ -100,11 +100,10 @@ export async function replaceImageSyntaxMarkdown(
 	const obsidianMatches: { full: string; ref: string; alt: string }[] = [];
 	let obsidianM: RegExpExecArray | null;
 	while ((obsidianM = obsidianRe.exec(out)) !== null) {
-		obsidianMatches.push({
-			full: obsidianM[0],
-			ref: obsidianM[1].trim(),
-			alt: (obsidianM[2] ?? "").trim(),
-		});
+		const [full, rawRef, rawAlt] = obsidianM;
+		const ref = (rawRef ?? "").trim();
+		const alt = (rawAlt ?? "").trim();
+		obsidianMatches.push({ full, ref, alt });
 	}
 	const obsidianReplacements = await Promise.all(
 		obsidianMatches.map((m) => imgForRef(m.ref, m.alt))
@@ -120,11 +119,10 @@ export async function replaceImageSyntaxMarkdown(
 	const mdImgMatches: { full: string; ref: string; alt: string }[] = [];
 	let mdImgM: RegExpExecArray | null;
 	while ((mdImgM = mdImgRe.exec(out)) !== null) {
-		mdImgMatches.push({
-			full: mdImgM[0],
-			ref: mdImgM[2].trim(),
-			alt: (mdImgM[1] ?? "").trim(),
-		});
+		const [full, rawAlt, rawRef] = mdImgM;
+		const ref = (rawRef ?? "").trim();
+		const alt = (rawAlt ?? "").trim();
+		mdImgMatches.push({ full, ref, alt });
 	}
 	const mdImgReplacements = await Promise.all(
 		mdImgMatches.map((m) => imgForRef(m.ref, m.alt))
@@ -178,7 +176,7 @@ function protectLatex(text: string): { text: string; stored: string[] } {
 	const placeholder = (i: number) => `${LATEX_PLACEHOLDER_PREFIX}${i}${LATEX_PLACEHOLDER_SUFFIX}`;
 
 	let out = text;
-	out = out.replace(/\\\([^)]*?\\\)/gs, (m) => {
+	out = out.replace(/\\\([\s\S]*?\\\)/g, (m: string) => {
 		stored.push(m);
 		return placeholder(stored.length - 1);
 	});
@@ -205,7 +203,9 @@ function restoreLatex(text: string, stored: string[]): string {
 	let out = text;
 	for (let i = 0; i < stored.length; i++) {
 		const ph = `${LATEX_PLACEHOLDER_PREFIX}${i}${LATEX_PLACEHOLDER_SUFFIX}`;
-		out = out.replace(ph, normalizeLatexChunk(stored[i]));
+		const chunk = stored[i];
+		if (chunk == null) continue;
+		out = out.replace(ph, normalizeLatexChunk(chunk));
 	}
 	return out;
 }

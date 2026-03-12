@@ -8,7 +8,10 @@ import { extractCardsFromFile } from "./parser";
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
 	const bytes = new Uint8Array(buffer);
 	let binary = "";
-	for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+	for (let i = 0; i < bytes.length; i++) {
+		const byte = bytes[i]!;
+		binary += String.fromCharCode(byte);
+	}
 	return btoa(binary);
 }
 
@@ -116,7 +119,7 @@ export async function runFullSync(
 
 	if (settings.deleteRemovedNotes && globalTagsList.length > 0) {
 		const deckRoot = settings.defaultBasicDeckPrefix;
-		const tag = globalTagsList[0];
+		const tag = globalTagsList[0]!;
 		const deleted = await anki.deleteRemovedNotes(
 			settings.ankiConnectUrl,
 			keptIds,
