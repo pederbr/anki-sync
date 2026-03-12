@@ -1,55 +1,8 @@
-/* Anki Sync plugin styles */
+/*
 
-.anki-sync-modal .modal-content {
-	max-width: 560px;
-}
+This CSS file will be included with your plugin, and
+available in the app when your plugin is enabled.
 
-.anki-sync-log {
-	font-family: var(--font-monospace);
-	font-size: 12px;
-	line-height: 1.4;
-	white-space: pre-wrap;
-	word-break: break-word;
-	max-height: 420px;
-	overflow-y: auto;
-	padding: 10px 12px;
-	background: var(--background-secondary);
-	border-radius: 6px;
-	margin: 10px 0;
-	border: 1px solid var(--background-modifier-border);
-}
+If your plugin does not need CSS, delete this file.
 
-.anki-sync-log-entry {
-	margin: 3px 0;
-	padding: 1px 0;
-}
-
-.anki-sync-log-entry.info {
-	color: var(--text-normal);
-}
-
-.anki-sync-log-entry.warn {
-	color: var(--text-warning);
-}
-
-.anki-sync-log-entry.error {
-	color: var(--text-error);
-}
-
-.anki-sync-status {
-	font-weight: 500;
-	margin-bottom: 10px;
-	color: var(--text-muted);
-}
-
-.anki-sync-settings-section {
-	margin-top: 20px;
-	padding-top: 16px;
-	border-top: 1px solid var(--background-modifier-border);
-}
-
-.anki-sync-settings-section h3 {
-	margin-bottom: 10px;
-	font-size: 14px;
-	color: var(--text-normal);
-}
+*/

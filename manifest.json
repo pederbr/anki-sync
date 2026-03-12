@@ -1,9 +1,9 @@
 {
-  "id": "anki-sync",
-  "name": "Anki Sync",
-  "version": "0.1.0",
-  "minAppVersion": "0.15.0",
-  "description": "Sync Obsidian notes to Anki via AnkiConnect. Customizable card extraction (heading level, append vs replace), decks, tags, and deletion behavior.",
-  "author": "Pederbr",
-  "isDesktopOnly": true
+	"id": "anki-sync",
+	"name": "Anki Sync",
+	"version": "0.1.0",
+	"minAppVersion": "0.15.0",
+	"description": "Sync Obsidian notes to Anki via AnkiConnect with customizable card extraction (heading level, append vs replace) and safe deletion.",
+	"author": "Pederbr",
+	"isDesktopOnly": true
 }

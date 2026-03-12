@@ -1,25 +1,30 @@
 {
 	"name": "obsidian-anki-sync",
 	"version": "0.1.0",
-	"description": "Sync Obsidian notes to Anki via AnkiConnect with customizable card extraction",
+	"description": "Sync Obsidian notes to Anki via AnkiConnect with customizable card extraction.",
 	"main": "main.js",
+	"type": "module",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"version": "node version-bump.mjs && git add manifest.json versions.json",
+		"lint": "eslint ."
 	},
 	"keywords": [],
-	"author": "Pederbr",
-	"license": "MIT",
+	"license": "0-BSD",
 	"devDependencies": {
-		"@types/markdown-it": "^14.1.2",
 		"@types/node": "^16.11.6",
-		"builtin-modules": "3.3.0",
-		"esbuild": "0.17.3",
-		"obsidian": "latest",
+		"esbuild": "0.25.5",
+		"eslint-plugin-obsidianmd": "0.1.9",
+		"globals": "14.0.0",
 		"tslib": "2.4.0",
-		"typescript": "4.7.4"
+		"typescript": "^5.8.3",
+		"typescript-eslint": "8.35.1",
+		"@eslint/js": "9.30.1",
+		"jiti": "2.6.1"
 	},
 	"dependencies": {
+		"obsidian": "latest",
 		"markdown-it": "^14.0.0"
 	}
 }
