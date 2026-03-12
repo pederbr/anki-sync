@@ -1,5 +1,6 @@
 import { App, Modal, ButtonComponent } from "obsidian";
 import type AnkiSyncPlugin from "./main";
+import type { SyncProgress } from "./syncEngine";
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -15,6 +16,8 @@ export class SyncModal extends Modal {
 	logEntries: LogEntry[] = [];
 	logEl: HTMLPreElement | null = null;
 	runButton: ButtonComponent | null = null;
+	progressBarEl: HTMLProgressElement | null = null;
+	progressLabelEl: HTMLDivElement | null = null;
 	private plugin: AnkiSyncPlugin;
 
 	constructor(app: App, plugin: AnkiSyncPlugin) {
@@ -28,6 +31,9 @@ export class SyncModal extends Modal {
 		contentEl.createEl("h2", { text: "Anki sync" });
 
 		contentEl.createEl("div", { cls: "anki-sync-status" }).setText("Idle");
+		this.progressLabelEl = contentEl.createEl("div", { cls: "anki-sync-progress-label" });
+		this.progressBarEl = contentEl.createEl("progress", { cls: "anki-sync-progress" });
+		this.resetProgress();
 
 		const buttonContainer = contentEl.createDiv();
 		this.runButton = new ButtonComponent(buttonContainer)
@@ -45,6 +51,8 @@ export class SyncModal extends Modal {
 		this.contentEl.empty();
 		this.logEl = null;
 		this.runButton = null;
+		this.progressBarEl = null;
+		this.progressLabelEl = null;
 	}
 
 	appendLog(level: LogLevel, message: string): void {
@@ -61,7 +69,7 @@ export class SyncModal extends Modal {
 	private refreshLogDisplay(): void {
 		if (!this.logEl) return;
 		if (this.logEntries.length === 0) {
-			this.logEl.setText("Log output will appear here after you run a sync.");
+			this.logEl.setText("Only errors are shown here.");
 			this.logEl.querySelectorAll(".anki-sync-log-entry").forEach((el) => el.remove());
 			return;
 		}
@@ -79,6 +87,35 @@ export class SyncModal extends Modal {
 		const status = this.contentEl.querySelector(".anki-sync-status");
 		if (status) status.setText(running ? "Running…" : "Idle");
 		if (this.runButton) this.runButton.setDisabled(running);
+		if (!running && this.progressLabelEl) {
+			this.progressLabelEl.setText("Progress: idle");
+		}
+	}
+
+	setProgress(progress: SyncProgress): void {
+		if (!this.progressBarEl || !this.progressLabelEl) return;
+		const total = progress.totalFiles;
+		const processed = Math.min(progress.processedFiles, total);
+		if (total <= 0) {
+			this.progressBarEl.max = 1;
+			this.progressBarEl.value = 1;
+			this.progressLabelEl.setText("Progress: no markdown files to sync");
+			return;
+		}
+		this.progressBarEl.max = total;
+		this.progressBarEl.value = processed;
+		const percent = Math.floor((processed / total) * 100);
+		this.progressLabelEl.setText(`Progress: ${processed}/${total} files (${percent}%)`);
+	}
+
+	private resetProgress(): void {
+		if (this.progressBarEl) {
+			this.progressBarEl.max = 1;
+			this.progressBarEl.value = 0;
+		}
+		if (this.progressLabelEl) {
+			this.progressLabelEl.setText("Progress: idle");
+		}
 	}
 
 	async onRunSync(): Promise<void> {

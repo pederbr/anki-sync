@@ -60,8 +60,8 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 				})
 			);
 		new Setting(containerEl)
-			.setName("Default deck prefix")
-			.setDesc("Prefix for generated deck names (e.g. Obsidian)")
+			.setName("Parent deck name")
+			.setDesc("All synced cards are placed in this deck (e.g. Obsidian).")
 			.addText((text) =>
 				text
 					.setPlaceholder("Obsidian")
@@ -84,6 +84,19 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.cardUpdateMode)
 					.onChange(async (value) => {
 						this.plugin.settings.cardUpdateMode = value as CardUpdateMode;
+						await this.plugin.saveSettings();
+					})
+			);
+		new Setting(containerEl)
+			.setName("Background sync on note changes")
+			.setDesc(
+				"Run sync automatically in the background when markdown files are created, edited, renamed, or deleted."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableBackgroundSync)
+					.onChange(async (value) => {
+						this.plugin.settings.enableBackgroundSync = value;
 						await this.plugin.saveSettings();
 					})
 			);
