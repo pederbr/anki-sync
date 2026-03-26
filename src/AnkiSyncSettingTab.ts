@@ -53,7 +53,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("AnkiConnect API key")
 			.setDesc(
-				"Optional. If you set apiKey in Anki (Tools → Add-ons → AnkiConnect → Config), paste the same value here. Sent as the JSON field \"key\" on each request (except requestPermission)."
+				"Optional. If you set apiKey in Anki (tools → add-ons → AnkiConnect → config), paste the same value here. Sent as the JSON field \"key\" on each request (except requestPermission)."
 			)
 			.addText((text) => {
 				text.inputEl.type = "password";
@@ -183,11 +183,11 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Attachments folder name")
 			.setDesc(
-				"Folder under the vault root where images are stored (e.g. attachments, Assets). Used when resolving bare filenames like ![[photo.png]]. Leave empty to rely on full paths and Obsidian link resolution only."
+				"Folder under the vault root where images are stored (e.g. Attachments, assets). Used when resolving bare filenames like ![[photo.png]]. Leave empty to rely on full paths and Obsidian link resolution only."
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("attachments")
+					.setPlaceholder("Attachments")
 					.setValue(this.plugin.settings.attachmentsFolderName)
 					.onChange(async (value) => {
 						this.plugin.settings.attachmentsFolderName = value;
@@ -224,7 +224,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Write sync debug log")
 			.setDesc(
-				"Append a trace to a file under your vault root (not under .obsidian/plugins). Turn this on, run a sync, then open the file from the path below in the file explorer."
+				`Append a trace to a file under your vault root (not under ${this.app.vault.configDir}/plugins). Turn this on, run a sync, then open the file from the path below in the file explorer.`
 			)
 			.addToggle((toggle) =>
 				toggle

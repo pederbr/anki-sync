@@ -346,7 +346,7 @@ export default class AnkiSyncPlugin extends Plugin {
 
 	private setStatusDone(text: string): void {
 		if (!this.statusWidgetEl || !this.statusFillEl || !this.statusTextEl) return;
-		this.statusFillEl.style.width = "100%";
+		this.statusFillEl.setCssProps({ width: "100%" });
 		this.statusTextEl.setText(text);
 		this.statusWidgetEl.removeClass("is-error");
 		this.statusWidgetEl.removeClass("is-hidden");

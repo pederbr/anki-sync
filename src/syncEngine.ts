@@ -455,8 +455,6 @@ export async function runIncrementalFileSync(
 	const cards = await extractCardsFromFile(content, file, extractOptions, imageCtx, storeMedia);
 
 	const deckName = ankiDeckNameForMarkdownFile(vault, file, settings.defaultBasicDeckPrefix);
-	const fileTag = file.basename.replace(/\s/g, "_");
-	const tags = [...globalTagsList, fileTag];
 	const newKeySet = new Set(cards.map((c) => cardStateKey(deckName, c.front)));
 
 	const oldKeys = previousState.fileCardKeys[file.path] ?? [];

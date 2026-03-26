@@ -31,4 +31,18 @@ export default tseslint.config(
 		"versions.json",
 		"main.js",
 	]),
+	{
+		files: ["**/*.ts", "**/*.tsx"],
+		rules: {
+			"obsidianmd/ui/sentence-case": [
+				"error",
+				{
+					enforceCamelCaseLower: true,
+					brands: ["AnkiConnect", "Anki", "Obsidian", "JSON"],
+					ignoreWords: ["apiKey", "requestPermission"],
+					ignoreRegex: ["anki-sync-debug\\.log"],
+				},
+			],
+		},
+	},
 );
