@@ -1,4 +1,4 @@
-import type { TFile } from "obsidian";
+import { TFile, type MetadataCache, type TAbstractFile, type Vault } from "obsidian";
 import MarkdownIt from "markdown-it";
 
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"]);
@@ -18,6 +18,42 @@ export interface Card {
 
 export type StoreMediaFn = (file: TFile) => Promise<string>;
 
+/** Context for resolving wiki/markdown image paths like the Python script (vault-relative path + index + Obsidian link resolution). */
+export interface ImageResolveContext {
+	vault: Vault;
+	metadataCache: MetadataCache;
+	/** Path of the markdown file being processed (for Obsidian link resolution). */
+	sourcePath: string;
+	imageIndex: Map<string, TFile>;
+	attachmentsFolderName: string;
+}
+
+function stripQueryAndHash(s: string): string {
+	let out = s;
+	const q = out.indexOf("?");
+	if (q >= 0) out = out.slice(0, q);
+	const h = out.indexOf("#");
+	if (h >= 0) out = out.slice(0, h);
+	return out;
+}
+
+function normalizeImageRef(raw: string): string {
+	let r = raw.trim().replace(/\\/g, "/");
+	if (!r) return "";
+	try {
+		r = decodeURIComponent(r);
+	} catch {
+		/* ignore */
+	}
+	r = stripQueryAndHash(r);
+	return r.trim();
+}
+
+function isImageFile(f: TFile): boolean {
+	const ext = "." + f.extension.toLowerCase();
+	return IMAGE_EXTENSIONS.has(ext);
+}
+
 function getBasename(ref: string): string {
 	const idx = ref.replace(/\\/g, "/").lastIndexOf("/");
 	return idx >= 0 ? ref.slice(idx + 1) : ref;
@@ -35,15 +71,35 @@ function getExt(ref: string): string {
 	return dot >= 0 ? base.slice(dot).toLowerCase() : "";
 }
 
-export function resolveImagePath(
-	ref: string,
-	imageIndex: Map<string, TFile>
-): TFile | null {
-	ref = ref.trim();
-	if (!ref) return null;
-	const basename = getBasename(ref);
-	const stem = getStem(ref);
-	const ext = getExt(ref);
+function tryFileAsImage(abstract: TAbstractFile | null): TFile | null {
+	return abstract instanceof TFile && isImageFile(abstract) ? abstract : null;
+}
+
+/**
+ * Resolve an image reference to a vault file.
+ * Mirrors obsidian_to_anki_sync.py: vault-relative path first, then basename index, fuzzy match.
+ * Also uses Obsidian’s link resolver and optional default attachments folder.
+ */
+export function resolveImagePath(ref: string, ctx: ImageResolveContext): TFile | null {
+	const r = normalizeImageRef(ref);
+	if (!r) return null;
+
+	const direct = tryFileAsImage(ctx.vault.getAbstractFileByPath(r));
+	if (direct) return direct;
+
+	const linked = tryFileAsImage(ctx.metadataCache.getFirstLinkpathDest(r, ctx.sourcePath));
+	if (linked) return linked;
+
+	const folder = ctx.attachmentsFolderName.trim().replace(/^\/+|\/+$/g, "");
+	if (folder && !r.includes("/")) {
+		const prefixed = tryFileAsImage(ctx.vault.getAbstractFileByPath(`${folder}/${r}`));
+		if (prefixed) return prefixed;
+	}
+
+	const imageIndex = ctx.imageIndex;
+	const basename = getBasename(r);
+	const stem = getStem(r);
+	const ext = getExt(r);
 
 	if (imageIndex.has(basename)) return imageIndex.get(basename)!;
 	if (!ext && stem) {
@@ -71,16 +127,30 @@ function replaceWikilinks(text: string): string {
 	);
 }
 
+/** For use in HTML attribute values (e.g. img src / alt). */
+function escapeHtmlAttr(s: string): string {
+	return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+/**
+ * After upload, emit HTML img tags — not markdown `![]()`, because CommonMark treats
+ * spaces in `![](Pasted image 123.png)` as invalid (URL cannot contain spaces), so
+ * markdown-it leaves the literal syntax in the output and images never render.
+ */
+function imgHtmlUploaded(filename: string, alt: string): string {
+	return `<img src="${escapeHtmlAttr(filename)}" alt="${escapeHtmlAttr(alt)}">`;
+}
+
 export async function replaceImageSyntaxMarkdown(
 	text: string,
-	imageIndex: Map<string, TFile>,
+	imageCtx: ImageResolveContext,
 	storeMedia: StoreMediaFn
 ): Promise<string> {
 	const imgForRef = async (ref: string, alt = ""): Promise<string> => {
-		const file = resolveImagePath(ref, imageIndex);
+		const file = resolveImagePath(ref, imageCtx);
 		if (!file) return `[missing image: ${ref}]`;
 		const filename = await storeMedia(file);
-		return `![${alt}](${filename})`;
+		return imgHtmlUploaded(filename, alt);
 	};
 
 	const pastedRe = /^!Pasted image\s+(.+\.(?:png|jpg|jpeg|gif|svg|webp))\s*$/i;
@@ -212,11 +282,11 @@ function restoreLatex(text: string, stored: string[]): string {
 
 export async function processFrontText(
 	text: string,
-	imageIndex: Map<string, TFile>,
+	imageCtx: ImageResolveContext,
 	storeMedia: StoreMediaFn
 ): Promise<string> {
 	let out = replaceWikilinks(text);
-	out = await replaceImageSyntaxMarkdown(out, imageIndex, storeMedia);
+	out = await replaceImageSyntaxMarkdown(out, imageCtx, storeMedia);
 	const { text: afterProtect, stored } = protectLatex(out);
 	out = restoreLatex(afterProtect, stored);
 	return out;
@@ -226,11 +296,11 @@ const md = new MarkdownIt("commonmark", { html: true });
 
 export async function processBackText(
 	text: string,
-	imageIndex: Map<string, TFile>,
+	imageCtx: ImageResolveContext,
 	storeMedia: StoreMediaFn
 ): Promise<string> {
 	let out = replaceWikilinks(text);
-	out = await replaceImageSyntaxMarkdown(out, imageIndex, storeMedia);
+	out = await replaceImageSyntaxMarkdown(out, imageCtx, storeMedia);
 	out = ensureBlankLineBeforeLists(out);
 	const { text: afterProtect, stored } = protectLatex(out);
 	const html = md.render(afterProtect);
@@ -241,7 +311,7 @@ export async function extractCardsFromFile(
 	content: string,
 	file: TFile,
 	options: ExtractOptions,
-	imageIndex: Map<string, TFile>,
+	imageCtx: ImageResolveContext,
 	storeMedia: StoreMediaFn
 ): Promise<Card[]> {
 	const lines = content.split(/\r?\n/);
@@ -291,8 +361,8 @@ export async function extractCardsFromFile(
 		const processed: Card[] = [];
 		for (const card of cards) {
 			processed.push({
-				front: await processFrontText(card.front, imageIndex, storeMedia),
-				back: await processBackText(card.back, imageIndex, storeMedia),
+				front: await processFrontText(card.front, imageCtx, storeMedia),
+				back: await processBackText(card.back, imageCtx, storeMedia),
 			});
 		}
 		return processed;
@@ -312,8 +382,8 @@ export async function extractCardsFromFile(
 	const backRaw = backLines.join("\n").trim();
 	return [
 		{
-			front: await processFrontText(frontRaw, imageIndex, storeMedia),
-			back: await processBackText(backRaw, imageIndex, storeMedia),
+			front: await processFrontText(frontRaw, imageCtx, storeMedia),
+			back: await processBackText(backRaw, imageCtx, storeMedia),
 		},
 	];
 }

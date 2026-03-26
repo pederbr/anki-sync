@@ -12,6 +12,9 @@ import { runFullSync, type SyncProgress } from "./syncEngine";
 export type LogLevel = "info" | "warn" | "error";
 
 export default class AnkiSyncPlugin extends Plugin {
+	/** Ignore vault file events until this time (epoch ms) so startup indexing does not trigger a sync. */
+	private vaultDrivenSyncAllowedAfter = 0;
+
 	settings: PluginSettings;
 	syncState: SyncState;
 	private backgroundSyncTimer: number | null = null;
@@ -25,6 +28,9 @@ export default class AnkiSyncPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+
+		// Vault listeners often fire many times while Obsidian loads; defer background sync until things settle.
+		this.vaultDrivenSyncAllowedAfter = Date.now() + 12_000;
 
 		this.addRibbonIcon("sync", "Sync to Anki (background)", () =>
 			this.scheduleBackgroundSync("manual ribbon click", 0, true)
@@ -122,7 +128,7 @@ export default class AnkiSyncPlugin extends Plugin {
 				this.syncQueued = false;
 				const result = await runFullSync(
 					this.settings,
-					this.app.vault,
+					this.app,
 					this.syncState,
 					(ev) => {
 						if (ev.level === "error") hadError = true;
@@ -151,15 +157,16 @@ export default class AnkiSyncPlugin extends Plugin {
 	}
 
 	private onVaultFileChanged(file: TAbstractFile, reason: string): void {
+		if (!this.settings.enableBackgroundSync) return;
 		if (!(file instanceof TFile)) return;
 		if (file.extension.toLowerCase() !== "md") return;
+		if (Date.now() < this.vaultDrivenSyncAllowedAfter) return;
 		// Ignore file events while syncing to avoid immediate follow-up reruns.
 		if (this.syncInProgress) return;
 		this.scheduleBackgroundSync(reason);
 	}
 
 	private scheduleBackgroundSync(reason: string, delayMs = 1500, immediate = false): void {
-		if (!this.settings.enableBackgroundSync) return;
 		if (this.backgroundSyncTimer != null) {
 			window.clearTimeout(this.backgroundSyncTimer);
 		}

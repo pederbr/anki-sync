@@ -118,6 +118,14 @@ export class SyncModal extends Modal {
 		}
 	}
 
+	/** Shown after connect/indexing, before the first file progress report. */
+	private setProgressPreparing(): void {
+		if (!this.progressBarEl || !this.progressLabelEl) return;
+		this.progressBarEl.max = 1;
+		this.progressBarEl.value = 0;
+		this.progressLabelEl.setText("Progress: preparing…");
+	}
+
 	async onRunSync(): Promise<void> {
 		if (this.plugin.settings.deleteRemovedNotes) {
 			const confirmed = await new Promise<boolean>((resolve) => {
@@ -154,10 +162,14 @@ export class SyncModal extends Modal {
 		}
 
 		this.setRunning(true);
+		this.setProgressPreparing();
 		this.clearLog();
 		this.appendLog("info", "Starting sync…");
 		try {
-			await this.plugin.runFullSync((level, message) => this.appendLog(level, message));
+			await this.plugin.runFullSync(
+				(level, message) => this.appendLog(level, message),
+				(progress) => this.setProgress(progress)
+			);
 			this.appendLog("info", "Sync finished.");
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);

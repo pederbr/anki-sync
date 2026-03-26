@@ -39,17 +39,32 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Anki connect address")
 			.setDesc(
-				"Address where the app is listening" + " (default: http://localhost:8765)."
+				"POST URL for AnkiConnect (default: http://127.0.0.1:8765). Must match webBindAddress in Anki."
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("Enter server address")
+					.setPlaceholder("http://127.0.0.1:8765")
 					.setValue(this.plugin.settings.ankiConnectUrl)
 					.onChange(async (value) => {
 						this.plugin.settings.ankiConnectUrl = value;
 						await this.plugin.saveSettings();
 					})
 			);
+		new Setting(containerEl)
+			.setName("AnkiConnect API key")
+			.setDesc(
+				"Optional. If you set apiKey in Anki (Tools → Add-ons → AnkiConnect → Config), paste the same value here. Sent as the JSON field \"key\" on each request (except requestPermission)."
+			)
+			.addText((text) => {
+				text.inputEl.type = "password";
+				text
+					.setPlaceholder("Leave empty if AnkiConnect apiKey is not set")
+					.setValue(this.plugin.settings.ankiConnectApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.ankiConnectApiKey = value;
+						await this.plugin.saveSettings();
+					});
+			});
 		new Setting(containerEl)
 			.setName("Basic model name")
 			.setDesc("Anki note type for basic cards")
@@ -60,11 +75,14 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 				})
 			);
 		new Setting(containerEl)
-			.setName("Parent deck name")
-			.setDesc("All synced cards are placed in this deck (e.g. Obsidian).")
+			.setName("Top-level deck name")
+			.setDesc(
+				"First segment of each Anki deck path. Leave empty to use your vault folder name. " +
+					"Subdecks follow your folders and note title, e.g. Top::Toksikologi::Toksiske stoffer (same as obsidian_to_anki_sync.py)."
+			)
 			.addText((text) =>
 				text
-					.setPlaceholder("Obsidian")
+					.setPlaceholder("Vault name if empty")
 					.setValue(this.plugin.settings.defaultBasicDeckPrefix)
 					.onChange(async (value) => {
 						this.plugin.settings.defaultBasicDeckPrefix = value;
@@ -90,7 +108,8 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Background sync on note changes")
 			.setDesc(
-				"Run sync automatically in the background when markdown files are created, edited, renamed, or deleted."
+				"When on, creating, editing, renaming, or deleting markdown files queues a sync after a short delay. " +
+					"When off, only manual sync runs (ribbon icon or Sync to Anki commands)."
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -160,6 +179,20 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 					})
 			);
 		new Setting(containerEl)
+			.setName("Attachments folder name")
+			.setDesc(
+				"Folder under the vault root where images are stored (e.g. attachments, Assets). Used when resolving bare filenames like ![[photo.png]]. Leave empty to rely on full paths and Obsidian link resolution only."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("attachments")
+					.setValue(this.plugin.settings.attachmentsFolderName)
+					.onChange(async (value) => {
+						this.plugin.settings.attachmentsFolderName = value;
+						await this.plugin.saveSettings();
+					})
+			);
+		new Setting(containerEl)
 			.setName("Excluded folder names")
 			.setDesc("Comma-separated folder names to skip (for example lub, templates).")
 			.addText((text) =>
@@ -180,6 +213,36 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.globalTags)
 					.onChange(async (value) => {
 						this.plugin.settings.globalTags = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		const debugSection = new Setting(containerEl).setName("Debugging").setHeading();
+		debugSection.settingEl.addClass("anki-sync-settings-section");
+		new Setting(containerEl)
+			.setName("Write sync debug log")
+			.setDesc(
+				"Append a trace to a file under your vault root (not under .obsidian/plugins). Turn this on, run a sync, then open the file from the path below in the file explorer."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.debugSyncLogEnabled)
+					.onChange(async (value) => {
+						this.plugin.settings.debugSyncLogEnabled = value;
+						await this.plugin.saveSettings();
+					})
+			);
+		new Setting(containerEl)
+			.setName("Debug log file path")
+			.setDesc(
+				"Relative to vault root only. Default creates e.g. MyVault/anki-sync-debug.log next to your notes. Folders are created if needed."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("anki-sync-debug.log")
+					.setValue(this.plugin.settings.debugSyncLogPath)
+					.onChange(async (value) => {
+						this.plugin.settings.debugSyncLogPath = value;
 						await this.plugin.saveSettings();
 					})
 			);

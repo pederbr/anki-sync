@@ -6,6 +6,11 @@
 - Entry point: `main.ts` compiled to `main.js` and loaded by Obsidian.
 - Required release artifacts: `main.js`, `manifest.json`, and optional `styles.css`.
 
+## Context
+
+- This project is based on the python code in obsidian_to_anki_sync.py. DO NOT CHANGE THE PYTHON CODE.
+- For documentation on the AnkiConnect API, see Anki-connect.md.
+
 ## Environment & tooling
 
 - Node.js: use current LTS (Node 18+ recommended).
