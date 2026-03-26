@@ -1,7 +1,7 @@
 {
 	"id": "anki-note-sync",
 	"name": "Anki note-sync",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
 	"description": "Sync notes to Anki via AnkiConnect with customizable card extraction (heading level, append vs replace) and safe deletion.",
 	"author": "Pederbr",
