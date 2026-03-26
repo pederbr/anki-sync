@@ -1,6 +1,6 @@
 # Anki Sync
 
-Sync your Obsidian vault to Anki via [AnkiConnect](https://github.com/FooSoft/anki-connect). Creates Basic (and optionally Cloze) cards from your markdown notes with full control over heading levels, update behavior, and deletion.
+Sync your Obsidian vault to Anki via [AnkiConnect](https://github.com/FooSoft/anki-connect). Creates Basic  cards from your markdown notes with full control over heading levels, update behavior, and deletion.
 
 ## Requirements
 
@@ -18,13 +18,15 @@ Sync your Obsidian vault to Anki via [AnkiConnect](https://github.com/FooSoft/an
    - **Background sync on note changes**: automatically queue sync when markdown files change
    - **Card extraction**: Section heading level (H1–H6), intro card toggle
    - **Paths & tags**: Excluded folders, global tags, vault root subpath
+   - **Asset handling**: If you store assets in a separate folder, enter the folder name here.
 
 ## Usage
 
+- The app will automatically sync when you edit a markdown file.
 - Use the **sync icon** in the left ribbon, or run the command **Sync to Anki** to run a background sync.
 - Progress is shown in the status bar corner while syncing.
 - Use **Open sync view** if you want a detailed log window and manual run button.
-- Optional command: **Sync to Anki in background** (explicitly starts a queued background run).
+- **Sync to Anki in background** (explicitly starts a queued background run).
 - If “Remove notes no longer in vault” is on, you will be asked to confirm before notes are deleted.
 
 ## Behavior
