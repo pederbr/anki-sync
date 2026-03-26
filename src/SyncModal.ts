@@ -27,12 +27,12 @@ export class SyncModal extends Modal {
 
 	onOpen(): void {
 		const { contentEl } = this;
-		contentEl.addClass("anki-sync-modal");
-		contentEl.createEl("h2", { text: "Anki sync" });
+		contentEl.addClass("anki-note-sync-modal");
+		contentEl.createEl("h2", { text: "Anki note-sync" });
 
-		contentEl.createEl("div", { cls: "anki-sync-status" }).setText("Idle");
-		this.progressLabelEl = contentEl.createEl("div", { cls: "anki-sync-progress-label" });
-		this.progressBarEl = contentEl.createEl("progress", { cls: "anki-sync-progress" });
+		contentEl.createEl("div", { cls: "anki-note-sync-status" }).setText("Idle");
+		this.progressLabelEl = contentEl.createEl("div", { cls: "anki-note-sync-progress-label" });
+		this.progressBarEl = contentEl.createEl("progress", { cls: "anki-note-sync-progress" });
 		this.resetProgress();
 
 		const buttonContainer = contentEl.createDiv();
@@ -42,7 +42,7 @@ export class SyncModal extends Modal {
 			.onClick(() => this.onRunSync());
 		buttonContainer.createEl("br");
 
-		this.logEl = contentEl.createEl("pre", { cls: "anki-sync-log" });
+		this.logEl = contentEl.createEl("pre", { cls: "anki-note-sync-log" });
 		this.logEl.setText("Log output will appear here after you run a sync.");
 		this.refreshLogDisplay();
 	}
@@ -70,13 +70,13 @@ export class SyncModal extends Modal {
 		if (!this.logEl) return;
 		if (this.logEntries.length === 0) {
 			this.logEl.setText("Only errors are shown here.");
-			this.logEl.querySelectorAll(".anki-sync-log-entry").forEach((el) => el.remove());
+			this.logEl.querySelectorAll(".anki-note-sync-log-entry").forEach((el) => el.remove());
 			return;
 		}
 		this.logEl.empty();
 		this.logEl.setText("");
 		for (const entry of this.logEntries) {
-			const line = this.logEl.createEl("div", { cls: `anki-sync-log-entry ${entry.level}` });
+			const line = this.logEl.createEl("div", { cls: `anki-note-sync-log-entry ${entry.level}` });
 			const time = new Date(entry.timestamp).toLocaleTimeString();
 			line.setText(`[${time}] [${entry.level.toUpperCase()}] ${entry.message}`);
 		}
@@ -84,7 +84,7 @@ export class SyncModal extends Modal {
 	}
 
 	setRunning(running: boolean): void {
-		const status = this.contentEl.querySelector(".anki-sync-status");
+		const status = this.contentEl.querySelector(".anki-note-sync-status");
 		if (status) status.setText(running ? "Running…" : "Idle");
 		if (this.runButton) this.runButton.setDisabled(running);
 		if (!running && this.progressLabelEl) {
@@ -140,7 +140,7 @@ export class SyncModal extends Modal {
 						contentEl.createEl("p", {
 							text: "This sync will remove notes from Anki that no longer have a matching note in your vault. Continue?",
 						});
-						const buttons = contentEl.createDiv({ cls: "anki-sync-confirm-buttons" });
+						const buttons = contentEl.createDiv({ cls: "anki-note-sync-confirm-buttons" });
 						new ButtonComponent(buttons)
 							.setButtonText("Cancel")
 							.onClick(() => {

@@ -40,7 +40,7 @@ export default tseslint.config(
 					enforceCamelCaseLower: true,
 					brands: ["AnkiConnect", "Anki", "Obsidian", "JSON"],
 					ignoreWords: ["apiKey", "requestPermission"],
-					ignoreRegex: ["anki-sync-debug\\.log"],
+					ignoreRegex: ["anki-note-sync-debug\\.log"],
 				},
 			],
 		},

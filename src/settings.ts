@@ -48,7 +48,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	excludedFolderNames: "LUB",
 	globalTags: "obsidian",
 	debugSyncLogEnabled: false,
-	debugSyncLogPath: "anki-sync-debug.log",
+	debugSyncLogPath: "anki-note-sync-debug.log",
 };
 
 export const EMPTY_SYNC_STATE: SyncState = {

@@ -1,21 +1,21 @@
-.anki-sync-progress-label {
+.anki-note-sync-progress-label {
 	margin: 8px 0 6px;
 	font-size: var(--font-ui-small);
 	color: var(--text-muted);
 }
 
-.anki-sync-progress {
+.anki-note-sync-progress {
 	display: block;
 	width: 100%;
 	height: 10px;
 	margin-bottom: 10px;
 }
 
-.anki-sync-status-root {
+.anki-note-sync-status-root {
 	padding: 0 6px;
 }
 
-.anki-sync-status-widget {
+.anki-note-sync-status-widget {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -24,12 +24,12 @@
 	transition: opacity 140ms ease-in-out;
 }
 
-.anki-sync-status-widget.is-hidden {
+.anki-note-sync-status-widget.is-hidden {
 	opacity: 0;
 	pointer-events: none;
 }
 
-.anki-sync-status-track {
+.anki-note-sync-status-track {
 	width: 80px;
 	height: 6px;
 	background: var(--background-modifier-border);
@@ -37,23 +37,23 @@
 	overflow: hidden;
 }
 
-.anki-sync-status-fill {
+.anki-note-sync-status-fill {
 	width: 0%;
 	height: 100%;
 	background: var(--interactive-accent);
 	transition: width 160ms linear;
 }
 
-.anki-sync-status-text {
+.anki-note-sync-status-text {
 	font-size: var(--font-ui-smaller);
 	white-space: nowrap;
 	color: var(--text-muted);
 }
 
-.anki-sync-status-widget.is-error .anki-sync-status-fill {
+.anki-note-sync-status-widget.is-error .anki-note-sync-status-fill {
 	background: var(--text-error);
 }
 
-.anki-sync-status-widget.is-error .anki-sync-status-text {
+.anki-note-sync-status-widget.is-error .anki-note-sync-status-text {
 	color: var(--text-error);
 }

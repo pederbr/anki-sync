@@ -46,14 +46,14 @@ export class SyncDebugLogger {
 			}
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
-			console.error(`[anki-sync] debug log write failed: ${msg}`);
+			console.error(`[anki-note-sync] debug log write failed: ${msg}`);
 		}
 	}
 
 	static fromSettings(vault: Vault, settings: PluginSettings): SyncDebugLogger | null {
 		if (!settings.debugSyncLogEnabled) return null;
 		const path =
-			settings.debugSyncLogPath.trim() || "anki-sync-debug.log";
+			settings.debugSyncLogPath.trim() || "anki-note-sync-debug.log";
 		return new SyncDebugLogger(vault, path, true);
 	}
 

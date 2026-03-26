@@ -1,4 +1,4 @@
-# Anki Sync
+# Anki note-sync
 
 Sync your Obsidian vault to Anki via [AnkiConnect](https://github.com/FooSoft/anki-connect). Creates Basic  cards from your markdown notes with full control over heading levels, update behavior, and deletion.
 
@@ -12,7 +12,7 @@ Sync your Obsidian vault to Anki via [AnkiConnect](https://github.com/FooSoft/an
 1. Install AnkiConnect in Anki (Anki → Tools → Add-ons → Get Add-ons, then use the AnkiConnect code).
 2. Open Anki so it is running (AnkiConnect listens on `http://localhost:8765` by default).
 3. In Obsidian, install this plugin (copy the plugin folder into your vault’s `.obsidian/plugins/` and enable it in Settings → Community plugins).
-4. Open **Settings → Anki Sync** and configure:
+4. Open **Settings → Anki note-sync** and configure:
    - **AnkiConnect URL** (default: `http://localhost:8765`)
    - **Sync behavior**: Replace (upsert) vs Append only; whether to remove notes in Anki that no longer exist in the vault
    - **Background sync on note changes**: automatically queue sync when markdown files change

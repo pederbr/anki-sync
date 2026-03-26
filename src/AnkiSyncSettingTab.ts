@@ -91,7 +91,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 			);
 
 		const syncBehaviorSection = new Setting(containerEl).setName("Sync behavior").setHeading();
-		syncBehaviorSection.settingEl.addClass("anki-sync-settings-section");
+		syncBehaviorSection.settingEl.addClass("anki-note-sync-settings-section");
 		new Setting(containerEl)
 			.setName("Card update mode")
 			.setDesc("Replace: update existing notes by front text. Append: only create new notes, never update.")
@@ -136,7 +136,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 		const cardExtractionSection = new Setting(containerEl)
 			.setName("Card extraction")
 			.setHeading();
-		cardExtractionSection.settingEl.addClass("anki-sync-settings-section");
+		cardExtractionSection.settingEl.addClass("anki-note-sync-settings-section");
 		new Setting(containerEl)
 			.setName("Section heading level")
 			.setDesc("Heading level that defines card boundaries; each such heading becomes one card (h1–h6).")
@@ -167,7 +167,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 			);
 
 		const pathsTagsSection = new Setting(containerEl).setName("Paths & tags").setHeading();
-		pathsTagsSection.settingEl.addClass("anki-sync-settings-section");
+		pathsTagsSection.settingEl.addClass("anki-note-sync-settings-section");
 		new Setting(containerEl)
 			.setName("Vault root subpath")
 			.setDesc("Only sync notes under this path (relative to vault root). Leave empty for entire vault.")
@@ -220,7 +220,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 			);
 
 		const debugSection = new Setting(containerEl).setName("Debugging").setHeading();
-		debugSection.settingEl.addClass("anki-sync-settings-section");
+		debugSection.settingEl.addClass("anki-note-sync-settings-section");
 		new Setting(containerEl)
 			.setName("Write sync debug log")
 			.setDesc(
@@ -237,11 +237,11 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Debug log file path")
 			.setDesc(
-				"Relative to vault root only. Default creates e.g. MyVault/anki-sync-debug.log next to your notes. Folders are created if needed."
+				"Relative to vault root only. Default creates e.g. MyVault/anki-note-sync-debug.log next to your notes. Folders are created if needed."
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("anki-sync-debug.log")
+					.setPlaceholder("anki-note-sync-debug.log")
 					.setValue(this.plugin.settings.debugSyncLogPath)
 					.onChange(async (value) => {
 						this.plugin.settings.debugSyncLogPath = value;

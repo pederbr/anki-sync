@@ -225,7 +225,7 @@ export default class AnkiSyncPlugin extends Plugin {
 			void this.runVaultIncrementalBatch().catch((error: unknown) => {
 				const message = error instanceof Error ? error.message : String(error);
 				this.setStatusError("Sync failed");
-				console.error(`[anki-sync][background] incremental: ${message}`);
+				console.error(`[anki-note-sync][background] incremental: ${message}`);
 			});
 		}, delayMs);
 	}
@@ -253,7 +253,7 @@ export default class AnkiSyncPlugin extends Plugin {
 					this.syncState,
 					(ev: SyncEvent) => {
 						if (ev.level === "error") {
-							console.error(`[anki-sync][background] delete ${p}: ${ev.message}`);
+							console.error(`[anki-note-sync][background] delete ${p}: ${ev.message}`);
 						}
 					}
 				);
@@ -270,7 +270,7 @@ export default class AnkiSyncPlugin extends Plugin {
 					this.syncState,
 					(ev: SyncEvent) => {
 						if (ev.level === "error") {
-							console.error(`[anki-sync][background] ${file.path}: ${ev.message}`);
+							console.error(`[anki-note-sync][background] ${file.path}: ${ev.message}`);
 						}
 					}
 				);
@@ -301,13 +301,13 @@ export default class AnkiSyncPlugin extends Plugin {
 			void this
 				.runFullSync((level, message) => {
 					if (level === "error") {
-						console.error(`[anki-sync][background] ${reason}: ${message}`);
+						console.error(`[anki-note-sync][background] ${reason}: ${message}`);
 					}
 				})
 				.catch((error: unknown) => {
 					const message = error instanceof Error ? error.message : String(error);
 					this.setStatusError("Sync failed");
-					console.error(`[anki-sync][background] ${reason}: ${message}`);
+					console.error(`[anki-note-sync][background] ${reason}: ${message}`);
 				});
 		}, delayMs);
 	}
@@ -315,13 +315,13 @@ export default class AnkiSyncPlugin extends Plugin {
 	private setupStatusWidget(): void {
 		const root = this.addStatusBarItem();
 		root.empty();
-		root.addClass("anki-sync-status-root");
-		const widget = root.createDiv({ cls: "anki-sync-status-widget is-hidden" });
-		const track = widget.createDiv({ cls: "anki-sync-status-track" });
-		this.statusFillEl = track.createDiv({ cls: "anki-sync-status-fill" });
+		root.addClass("anki-note-sync-status-root");
+		const widget = root.createDiv({ cls: "anki-note-sync-status-widget is-hidden" });
+		const track = widget.createDiv({ cls: "anki-note-sync-status-track" });
+		this.statusFillEl = track.createDiv({ cls: "anki-note-sync-status-fill" });
 		this.statusTextEl = widget.createEl("span", {
-			cls: "anki-sync-status-text",
-			text: "Anki sync idle",
+			cls: "anki-note-sync-status-text",
+			text: "Anki note-sync idle",
 		});
 		this.statusWidgetEl = widget;
 	}
