@@ -351,6 +351,12 @@ export async function storeMediaFile(
 	await invokeAuth(auth, "storeMediaFile", { filename, data: dataBase64 });
 }
 
+export async function deleteNotesByIds(auth: AnkiConnectAuth, noteIds: number[]): Promise<void> {
+	const unique = [...new Set(noteIds.filter((id) => typeof id === "number" && id > 0))];
+	if (unique.length === 0) return;
+	await invokeAuth(auth, "deleteNotes", { notes: unique });
+}
+
 export async function deleteRemovedNotes(
 	auth: AnkiConnectAuth,
 	keptIds: Set<number>,
@@ -362,6 +368,6 @@ export async function deleteRemovedNotes(
 	const managedIds = await invokeAuth<number[]>(auth, "findNotes", { query });
 	const toDelete = managedIds.filter((id) => !keptIds.has(id));
 	if (toDelete.length === 0) return 0;
-	await invokeAuth(auth, "deleteNotes", { notes: toDelete });
+	await deleteNotesByIds(auth, toDelete);
 	return toDelete.length;
 }

@@ -141,6 +141,11 @@ function imgHtmlUploaded(filename: string, alt: string): string {
 	return `<img src="${escapeHtmlAttr(filename)}" alt="${escapeHtmlAttr(alt)}">`;
 }
 
+/** CommonMark HTML blocks run until a blank line; a newline right after `<img>` ends the block so markdown below is parsed. */
+function insertNewlineAfterHtmlImgTags(text: string): string {
+	return text.replace(/<img\b[^>]*>/gi, (m) => `${m}\n`);
+}
+
 export async function replaceImageSyntaxMarkdown(
 	text: string,
 	imageCtx: ImageResolveContext,
@@ -204,7 +209,32 @@ export async function replaceImageSyntaxMarkdown(
 		}
 	});
 
-	return out;
+	return insertNewlineAfterHtmlImgTags(out);
+}
+
+/** Inserts a blank line before ATX headings when missing so markdown-it parses them reliably (e.g. after paragraphs or images). Skipped inside fenced code (```). */
+const ATX_HEADING_LINE_RE = /^(\s*)(#{1,6})(\s|$)/;
+
+function ensureBlankLineBeforeAtxHeadings(text: string): string {
+	const lines = text.split("\n");
+	const out: string[] = [];
+	let inFence = false;
+
+	for (const line of lines) {
+		const trimmedStart = line.trimStart();
+		if (trimmedStart.startsWith("```")) {
+			inFence = !inFence;
+		}
+
+		const isAtxHeading = ATX_HEADING_LINE_RE.test(line);
+		const last = out.length > 0 ? out[out.length - 1]! : "";
+		if (!inFence && isAtxHeading && out.length > 0 && last.trim() !== "") {
+			out.push("");
+		}
+		out.push(line);
+	}
+
+	return out.join("\n");
 }
 
 function ensureBlankLineBeforeLists(text: string): string {
@@ -301,6 +331,7 @@ export async function processBackText(
 ): Promise<string> {
 	let out = replaceWikilinks(text);
 	out = await replaceImageSyntaxMarkdown(out, imageCtx, storeMedia);
+	out = ensureBlankLineBeforeAtxHeadings(out);
 	out = ensureBlankLineBeforeLists(out);
 	const { text: afterProtect, stored } = protectLatex(out);
 	const html = md.render(afterProtect);

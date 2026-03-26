@@ -13,17 +13,24 @@ function pathHasExcludedSegment(path: string, excludedFolders: string[]): boolea
 	return segments.some((seg) => excludedFolders.includes(seg));
 }
 
+export function isMarkdownFileInSyncScope(
+	file: TFile,
+	rootSubpath: string,
+	excludedFolders: string[]
+): boolean {
+	if (file.extension.toLowerCase() !== "md") return false;
+	if (!pathMatchesRoot(file.path, rootSubpath)) return false;
+	if (pathHasExcludedSegment(file.path, excludedFolders)) return false;
+	return true;
+}
+
 export function listMarkdownFiles(
 	vault: Vault,
 	rootSubpath: string,
 	excludedFolders: string[]
 ): TFile[] {
 	const all = vault.getMarkdownFiles();
-	return all.filter((f) => {
-		if (!pathMatchesRoot(f.path, rootSubpath)) return false;
-		if (pathHasExcludedSegment(f.path, excludedFolders)) return false;
-		return true;
-	});
+	return all.filter((f) => isMarkdownFileInSyncScope(f, rootSubpath, excludedFolders));
 }
 
 export function indexImageFiles(

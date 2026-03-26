@@ -7,7 +7,14 @@ import {
 } from "./settings";
 import { AnkiSyncSettingTab } from "./AnkiSyncSettingTab";
 import { SyncModal } from "./SyncModal";
-import { runFullSync, type SyncProgress } from "./syncEngine";
+import {
+	runCleanupDeletedMarkdownPath,
+	runFullSync,
+	runIncrementalFileSync,
+	type SyncEvent,
+	type SyncProgress,
+	type SyncResult,
+} from "./syncEngine";
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -25,6 +32,10 @@ export default class AnkiSyncPlugin extends Plugin {
 	private syncInProgress = false;
 	private syncQueued = false;
 	private activeSync: Promise<void> | null = null;
+	/** Paths removed from the vault pending Anki cleanup (incremental / rename / delete). */
+	private pendingDeletedMarkdownPaths = new Set<string>();
+	/** Latest file reference per path to sync incrementally after debounce. */
+	private pendingIncrementalFiles = new Map<string, TFile>();
 
 	async onload() {
 		await this.loadSettings();
@@ -60,10 +71,10 @@ export default class AnkiSyncPlugin extends Plugin {
 			this.app.vault.on("create", (file) => this.onVaultFileChanged(file, "file created"))
 		);
 		this.registerEvent(
-			this.app.vault.on("delete", (file) => this.onVaultFileChanged(file, "file deleted"))
+			this.app.vault.on("delete", (file) => this.onVaultFileDeleted(file, "file deleted"))
 		);
 		this.registerEvent(
-			this.app.vault.on("rename", (file) => this.onVaultFileChanged(file, "file renamed"))
+			this.app.vault.on("rename", (file, oldPath) => this.onVaultFileRenamed(file, oldPath))
 		);
 	}
 
@@ -120,6 +131,8 @@ export default class AnkiSyncPlugin extends Plugin {
 			window.clearTimeout(this.backgroundSyncTimer);
 			this.backgroundSyncTimer = null;
 		}
+		this.pendingDeletedMarkdownPaths.clear();
+		this.pendingIncrementalFiles.clear();
 		this.syncInProgress = true;
 		this.setStatusRunning(0, 1, "Starting sync...");
 		let hadError = false;
@@ -153,17 +166,127 @@ export default class AnkiSyncPlugin extends Plugin {
 		} finally {
 			this.syncInProgress = false;
 			this.activeSync = null;
+			if (
+				this.settings.enableBackgroundSync &&
+				(this.pendingDeletedMarkdownPaths.size > 0 || this.pendingIncrementalFiles.size > 0)
+			) {
+				this.scheduleVaultIncrementalSync(0);
+			}
 		}
 	}
 
-	private onVaultFileChanged(file: TAbstractFile, reason: string): void {
+	private onVaultFileChanged(file: TAbstractFile, _reason: string): void {
 		if (!this.settings.enableBackgroundSync) return;
 		if (!(file instanceof TFile)) return;
 		if (file.extension.toLowerCase() !== "md") return;
 		if (Date.now() < this.vaultDrivenSyncAllowedAfter) return;
-		// Ignore file events while syncing to avoid immediate follow-up reruns.
+		this.pendingIncrementalFiles.set(file.path, file);
 		if (this.syncInProgress) return;
-		this.scheduleBackgroundSync(reason);
+		this.scheduleVaultIncrementalSync();
+	}
+
+	private onVaultFileDeleted(file: TAbstractFile, _reason: string): void {
+		if (!this.settings.enableBackgroundSync) return;
+		if (!(file instanceof TFile)) return;
+		if (file.extension.toLowerCase() !== "md") return;
+		if (Date.now() < this.vaultDrivenSyncAllowedAfter) return;
+		this.pendingDeletedMarkdownPaths.add(file.path);
+		this.pendingIncrementalFiles.delete(file.path);
+		if (this.syncInProgress) return;
+		this.scheduleVaultIncrementalSync();
+	}
+
+	private onVaultFileRenamed(file: TAbstractFile, oldPath: string): void {
+		if (!this.settings.enableBackgroundSync) return;
+		if (Date.now() < this.vaultDrivenSyncAllowedAfter) return;
+		const opOld = oldPath.toLowerCase().endsWith(".md");
+		const newFile = file instanceof TFile ? file : null;
+		const opNew = newFile != null && newFile.extension.toLowerCase() === "md";
+		if (opOld) {
+			this.pendingDeletedMarkdownPaths.add(oldPath);
+			this.pendingIncrementalFiles.delete(oldPath);
+		}
+		if (opNew) {
+			this.pendingIncrementalFiles.set(newFile.path, newFile);
+		}
+		if (!opOld && !opNew) return;
+		if (this.syncInProgress) return;
+		this.scheduleVaultIncrementalSync();
+	}
+
+	/** Debounced incremental sync (single-file) for vault-driven events. */
+	private scheduleVaultIncrementalSync(delayMs = 1500): void {
+		if (this.backgroundSyncTimer != null) {
+			window.clearTimeout(this.backgroundSyncTimer);
+		}
+		this.setStatusQueued("Sync queued...");
+		this.backgroundSyncTimer = window.setTimeout(() => {
+			this.backgroundSyncTimer = null;
+			void this.runVaultIncrementalBatch().catch((error: unknown) => {
+				const message = error instanceof Error ? error.message : String(error);
+				this.setStatusError("Sync failed");
+				console.error(`[anki-sync][background] incremental: ${message}`);
+			});
+		}, delayMs);
+	}
+
+	private async runVaultIncrementalBatch(): Promise<void> {
+		const deletePaths = [...this.pendingDeletedMarkdownPaths];
+		this.pendingDeletedMarkdownPaths.clear();
+		const syncFiles = [...this.pendingIncrementalFiles.values()];
+		this.pendingIncrementalFiles.clear();
+
+		if (deletePaths.length === 0 && syncFiles.length === 0) return;
+
+		this.syncInProgress = true;
+		this.setStatusRunning(0, Math.max(deletePaths.length + syncFiles.length, 1), "Syncing…");
+		let step = 0;
+		const totalSteps = deletePaths.length + syncFiles.length;
+		try {
+			for (const p of deletePaths) {
+				step++;
+				this.setStatusRunning(step, Math.max(totalSteps, 1), `Removing deleted notes (${step}/${totalSteps})`);
+				const result: SyncResult = await runCleanupDeletedMarkdownPath(
+					this.settings,
+					this.app,
+					p,
+					this.syncState,
+					(ev: SyncEvent) => {
+						if (ev.level === "error") {
+							console.error(`[anki-sync][background] delete ${p}: ${ev.message}`);
+						}
+					}
+				);
+				this.syncState = result.nextState;
+				await this.saveSettings();
+			}
+			for (const file of syncFiles) {
+				step++;
+				this.setStatusRunning(step, Math.max(totalSteps, 1), `Syncing ${file.path}`);
+				const result: SyncResult = await runIncrementalFileSync(
+					this.settings,
+					this.app,
+					file,
+					this.syncState,
+					(ev: SyncEvent) => {
+						if (ev.level === "error") {
+							console.error(`[anki-sync][background] ${file.path}: ${ev.message}`);
+						}
+					}
+				);
+				this.syncState = result.nextState;
+				await this.saveSettings();
+			}
+			this.setStatusDone("Sync complete");
+		} finally {
+			this.syncInProgress = false;
+			if (
+				this.pendingDeletedMarkdownPaths.size > 0 ||
+				this.pendingIncrementalFiles.size > 0
+			) {
+				this.scheduleVaultIncrementalSync(0);
+			}
+		}
 	}
 
 	private scheduleBackgroundSync(reason: string, delayMs = 1500, immediate = false): void {

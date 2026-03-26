@@ -108,8 +108,10 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Background sync on note changes")
 			.setDesc(
-				"When on, creating, editing, renaming, or deleting markdown files queues a sync after a short delay. " +
-					"When off, only manual sync runs (ribbon icon or Sync to Anki commands)."
+				"When on, changes to a markdown note queue an incremental sync for that file only (after a short delay). " +
+					"Renames and deletes update Anki for the affected paths. " +
+					"Use a manual sync for a full vault pass (including vault-wide removal of orphaned notes, if enabled). " +
+					"When off, only manual sync runs."
 			)
 			.addToggle((toggle) =>
 				toggle

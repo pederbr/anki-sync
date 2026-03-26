@@ -3,6 +3,8 @@ export type CardUpdateMode = "replace" | "append";
 export interface SyncState {
 	cardHashes: Record<string, string>;
 	cardNoteIds: Record<string, number>;
+	/** Vault path → card state keys last synced from that file (for incremental sync / removals). */
+	fileCardKeys: Record<string, string[]>;
 }
 
 export interface PluginSettings {
@@ -52,6 +54,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 export const EMPTY_SYNC_STATE: SyncState = {
 	cardHashes: {},
 	cardNoteIds: {},
+	fileCardKeys: {},
 };
 
 export function normalizeSyncState(raw: unknown): SyncState {
@@ -59,6 +62,7 @@ export function normalizeSyncState(raw: unknown): SyncState {
 	const src = raw as Partial<SyncState>;
 	const cardHashes: Record<string, string> = {};
 	const cardNoteIds: Record<string, number> = {};
+	const fileCardKeys: Record<string, string[]> = {};
 
 	if (src.cardHashes != null && typeof src.cardHashes === "object") {
 		for (const [key, value] of Object.entries(src.cardHashes)) {
@@ -72,8 +76,16 @@ export function normalizeSyncState(raw: unknown): SyncState {
 			}
 		}
 	}
+	if (src.fileCardKeys != null && typeof src.fileCardKeys === "object") {
+		for (const [path, value] of Object.entries(src.fileCardKeys)) {
+			if (Array.isArray(value)) {
+				const keys = value.filter((x): x is string => typeof x === "string");
+				if (keys.length > 0) fileCardKeys[path] = keys;
+			}
+		}
+	}
 
-	return { cardHashes, cardNoteIds };
+	return { cardHashes, cardNoteIds, fileCardKeys };
 }
 
 export function parseExcludedFolders(value: string): string[] {
