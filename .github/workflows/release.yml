@@ -11,25 +11,49 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: "18.x"
+          node-version: "20.x"
 
       - name: Build plugin
         run: |
-          npm install
+          npm ci
           npm run build
 
-      - name: Create release
+      - name: Verify release artifacts
+        run: |
+          test -f main.js
+          test -f manifest.json
+          test -f styles.css
+          node -e "const fs=require('fs'); const s=fs.statSync('main.js'); if(s.size<100) process.exit(1)"
+
+      - name: Check tag matches manifest version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          node -e "
+            const tag = process.env.TAG.replace(/^v/, '');
+            const m = require('./manifest.json').version.replace(/^v/, '');
+            if (tag !== m) {
+              console.error('Git tag must equal manifest.json version. Tag:', process.env.TAG, 'manifest:', require('./manifest.json').version);
+              process.exit(1);
+            }
+          "
+
+      - name: Create release with plugin assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
-
-          gh release create "$tag" \
-            --title="$tag" \
-            --draft \
-            main.js manifest.json styles.css
+          # Obsidian requires these files as release assets (not only source zips).
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" main.js manifest.json styles.css --clobber
+          else
+            gh release create "$tag" \
+              --title="$tag" \
+              --generate-notes \
+              main.js manifest.json styles.css
+          fi
