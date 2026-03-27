@@ -1,7 +1,6 @@
 import type { TFile, Vault } from "obsidian";
 
 /**
- * Matches `obsidian_to_anki_sync.py`:
  * `deck_parts = [root.name] + list(parts[:-1]) + [rel.stem]`, `deck_name = "::".join(deck_parts)`.
  * Each markdown file becomes its own leaf deck under folder-based subdecks.
  */

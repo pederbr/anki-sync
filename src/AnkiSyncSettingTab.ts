@@ -78,7 +78,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 			.setName("Top-level deck name")
 			.setDesc(
 				"First segment of each Anki deck path. Leave empty to use your vault folder name. " +
-					"Subdecks follow your folders and note title, e.g. Top::Toksikologi::Toksiske stoffer (same as obsidian_to_anki_sync.py)."
+					"Subdecks follow your folders and note title, e.g. Top::Toksikologi::Toksiske stoffer."
 			)
 			.addText((text) =>
 				text
@@ -241,7 +241,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("anki-note-sync-debug.log")
+					.setPlaceholder("Anki-note-sync-debug.log")
 					.setValue(this.plugin.settings.debugSyncLogPath)
 					.onChange(async (value) => {
 						this.plugin.settings.debugSyncLogPath = value;

@@ -1,5 +1,6 @@
 import tseslint from 'typescript-eslint';
 import obsidianmd from "eslint-plugin-obsidianmd";
+import { DEFAULT_BRANDS } from "eslint-plugin-obsidianmd/dist/lib/rules/ui/brands.js";
 import globals from "globals";
 import { globalIgnores } from "eslint/config";
 
@@ -37,10 +38,8 @@ export default tseslint.config(
 			"obsidianmd/ui/sentence-case": [
 				"error",
 				{
-					enforceCamelCaseLower: true,
-					brands: ["AnkiConnect", "Anki", "Obsidian", "JSON"],
+					brands: [...DEFAULT_BRANDS, "AnkiConnect"],
 					ignoreWords: ["apiKey", "requestPermission"],
-					ignoreRegex: ["anki-note-sync-debug\\.log"],
 				},
 			],
 		},

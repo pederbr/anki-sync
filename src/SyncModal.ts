@@ -99,7 +99,7 @@ export class SyncModal extends Modal {
 		if (total <= 0) {
 			this.progressBarEl.max = 1;
 			this.progressBarEl.value = 1;
-			this.progressLabelEl.setText("Progress: no markdown files to sync");
+			this.progressLabelEl.setText("Progress: no Markdown files to sync");
 			return;
 		}
 		this.progressBarEl.max = total;
