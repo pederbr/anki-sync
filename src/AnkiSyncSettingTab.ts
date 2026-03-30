@@ -51,14 +51,14 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 					})
 			);
 		new Setting(containerEl)
-			.setName("AnkiConnect API key")
+			.setName("AnkiConnect API key.")
 			.setDesc(
-				"Optional. If you set apiKey in Anki (tools → add-ons → AnkiConnect → config), paste the same value here. Sent as the JSON field \"key\" on each request (except requestPermission)."
+				"Optional. If you set apiKey in Anki (tools → add-ons → AnkiConnect → config), paste the same value here."
 			)
 			.addText((text) => {
 				text.inputEl.type = "password";
 				text
-					.setPlaceholder("Leave empty if AnkiConnect apiKey is not set")
+					.setPlaceholder("Leave empty if AnkiConnect apiKey is not set.")
 					.setValue(this.plugin.settings.ankiConnectApiKey)
 					.onChange(async (value) => {
 						this.plugin.settings.ankiConnectApiKey = value;
