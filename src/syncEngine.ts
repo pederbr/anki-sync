@@ -3,9 +3,11 @@ import type { PluginSettings, SyncState } from "./settings";
 import { parseExcludedFolders, parseGlobalTags } from "./settings";
 import * as anki from "./ankiClient";
 import { indexImageFiles, isMarkdownFileInSyncScope, listMarkdownFiles } from "./vaultScanner";
-import { extractCardsFromFile, type Card, type ImageResolveContext } from "./parser";
+import { extractCardsFromFile, extractOcclusionBlocksFromContent, type Card, type ImageResolveContext } from "./parser";
 import { SyncDebugLogger, truncateOneLine } from "./syncDebugLog";
 import { ankiDeckNameForMarkdownFile, ankiDeckRootForManagedNotes } from "./deckPath";
+import { resolveImagePath } from "./parser";
+import { renderFrontImage, occlusionBlockContentHash, frontImageFilename, occlusionCardTag } from "./imageOcclusionRenderer";
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
 	const bytes = new Uint8Array(buffer);
@@ -75,6 +77,158 @@ async function removeCardKeysFromAnkiAndState(
 	}
 }
 
+/**
+ * Sync all occlusion blocks found in a markdown file.
+ * For each mask one Basic card is created:
+ *   Front — generated PNG with all masks gray + the current mask highlighted
+ *   Back  — original image + label text
+ */
+async function processOcclusionBlocks(
+	file: TFile,
+	content: string,
+	vault: Vault,
+	previousState: SyncState,
+	mutable: MutableCardState,
+	auth: anki.AnkiConnectAuth,
+	config: anki.AnkiClientConfig,
+	globalTagsList: string[],
+	imageIndex: Map<string, TFile>,
+	uploadedMedia: Set<string>,
+	app: App,
+	settings: PluginSettings,
+	onLog: (level: LogLevel, message: string) => void
+): Promise<{ fileKeys: string[]; total: number; synced: number; skipped: number; failed: number }> {
+	const blocks = extractOcclusionBlocksFromContent(content, file.path);
+	if (blocks.length === 0) return { fileKeys: [], total: 0, synced: 0, skipped: 0, failed: 0 };
+
+	const deckName      = ankiDeckNameForMarkdownFile(vault, file, settings.defaultBasicDeckPrefix);
+	const fileTag       = file.basename.replace(/\s/g, "_");
+	const baseTags      = [...globalTagsList, fileTag];
+	const imageCtx: ImageResolveContext = {
+		vault,
+		metadataCache: app.metadataCache,
+		sourcePath:    file.path,
+		imageIndex,
+		attachmentsFolderName: settings.attachmentsFolderName,
+	};
+
+	const fileKeys: string[] = [];
+	let total = 0, synced = 0, skipped = 0, failed = 0;
+
+	for (const block of blocks) {
+		if (block.masks.length === 0) continue;
+
+		// Resolve and store the original image
+		const imgFile = resolveImagePath(block.image, imageCtx);
+		if (!imgFile) {
+			onLog("warn", `${file.path}: occlusion image not found: "${block.image}" — skipping block`);
+			continue;
+		}
+
+		let imageData: ArrayBuffer;
+		try {
+			imageData = await vault.readBinary(imgFile);
+		} catch (e: unknown) {
+			onLog("warn", `${file.path}: could not read occlusion image "${imgFile.path}": ${e instanceof Error ? e.message : String(e)}`);
+			continue;
+		}
+
+		// Store original image for use on card backs
+		let originalMediaName = imgFile.name;
+		if (!uploadedMedia.has(imgFile.name)) {
+			const b64 = arrayBufferToBase64(imageData);
+			await anki.storeMediaFile(auth, imgFile.name, b64);
+			uploadedMedia.add(imgFile.name);
+		}
+
+		const blockHash = occlusionBlockContentHash(block.image, block.header, block.masks);
+
+		for (let mi = 0; mi < block.masks.length; mi++) {
+			const mask      = block.masks[mi]!;
+			const uTag      = occlusionCardTag(blockHash, mask.id);
+			const key       = cardStateKey(deckName, uTag);
+			fileKeys.push(key);
+			total++;
+
+			// Build the HTML for front and back
+			const frontFilename = frontImageFilename(blockHash, mask.id);
+			const headerHtml    = block.header
+				? `<p style="text-align:center;font-size:0.85em;color:#666;margin:4px 0 0">${escapeHtml(block.header)}</p>`
+				: "";
+			const frontHtml = `<img src="${escapeHtml(frontFilename)}">${headerHtml}`;
+			const backHtml  =
+				`<img src="${escapeHtml(originalMediaName)}">` +
+				`<hr style="margin:8px 0">` +
+				`<p style="text-align:center;font-size:1.1em;font-weight:bold;">${escapeHtml(mask.label)}</p>`;
+
+			const tags     = [...baseTags];
+			const cardHash = hashText(`${deckName}\n${uTag}\n${frontHtml}\n${backHtml}\n${tags.join(" ")}`);
+			const prevHash = previousState.cardHashes[key];
+			const prevId   = previousState.cardNoteIds[key];
+
+			if (prevHash === cardHash && typeof prevId === "number" && prevId > 0) {
+				// Check if still in Anki
+				const alive = await anki.noteIdsStillInAnki(auth, [prevId]);
+				if (alive.has(prevId)) {
+					mutable.keptIds.add(prevId);
+					mutable.nextCardHashes[key]  = cardHash;
+					mutable.nextCardNoteIds[key] = prevId;
+					skipped++;
+					continue;
+				}
+			}
+
+			// Generate front image
+			let frontBase64: string;
+			try {
+				frontBase64 = await renderFrontImage(imageData, block.masks, mi);
+			} catch (e: unknown) {
+				failed++;
+				onLog("error", `${file.path}: failed to render occlusion front image for mask ${mask.id}: ${e instanceof Error ? e.message : String(e)}`);
+				continue;
+			}
+
+			// Store front image in Anki
+			try {
+				await anki.storeMediaFile(auth, frontFilename, frontBase64);
+			} catch (e: unknown) {
+				failed++;
+				onLog("error", `${file.path}: failed to store occlusion media "${frontFilename}": ${e instanceof Error ? e.message : String(e)}`);
+				continue;
+			}
+
+			// Upsert the card
+			let nid = -1;
+			try {
+				nid = await anki.upsertOcclusionCard(config, uTag, frontHtml, backHtml, deckName, tags);
+			} catch (e: unknown) {
+				failed++;
+				onLog("error", `${file.path}: occlusion card upsert failed for mask ${mask.id}: ${e instanceof Error ? e.message : String(e)}`);
+				continue;
+			}
+
+			if (nid > 0) {
+				mutable.keptIds.add(nid);
+				mutable.nextCardHashes[key]  = cardHash;
+				mutable.nextCardNoteIds[key] = nid;
+				synced++;
+			} else {
+				failed++;
+			}
+		}
+	}
+
+	return { fileKeys, total, synced, skipped, failed };
+}
+
+function escapeHtml(s: string): string {
+	return s
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
+}
+
 async function processMarkdownFile(
 	file: TFile,
 	settings: PluginSettings,
@@ -105,13 +259,13 @@ async function processMarkdownFile(
 	log("info", `File: ${file.path} → Deck: ${deckName}`);
 
 	let cards: Card[];
+	let fileContent: string | null = options?.preReadContent ?? null;
 
 	if (options?.preExtractedCards) {
 		cards = options.preExtractedCards;
 	} else {
-		let content: string;
 		try {
-			content = options?.preReadContent ?? (await vault.read(file));
+			fileContent = options?.preReadContent ?? (await vault.read(file));
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : String(e);
 			log("error", `Could not read ${file.path}: ${message}`);
@@ -140,7 +294,7 @@ async function processMarkdownFile(
 			return mediaFile.name;
 		};
 
-		cards = await extractCardsFromFile(content, file, extractOptions, imageCtx, storeMedia);
+		cards = await extractCardsFromFile(fileContent, file, extractOptions, imageCtx, storeMedia);
 	}
 
 	await debugLog?.line(`FILE ${file.path} extractedCards=${cards.length} deck=${deckName}`);
@@ -232,6 +386,20 @@ async function processMarkdownFile(
 				`Could not get Anki note id for ${file.path} (card ${cardIndex + 1}); see debug log for detail.`
 			);
 		}
+	}
+
+	// ── occlusion blocks ──────────────────────────────────────────────────────
+	if (fileContent !== null) {
+		const occResult = await processOcclusionBlocks(
+			file, fileContent, vault, previousState, mutable,
+			auth, config, globalTagsList, imageIndex, uploadedMedia,
+			app, settings, log
+		);
+		for (const k of occResult.fileKeys) fileKeys.push(k);
+		totalCards   += occResult.total;
+		syncedCards  += occResult.synced;
+		skippedCards += occResult.skipped;
+		failedCards  += occResult.failed;
 	}
 
 	return { fileKeys, totalCards, syncedCards, skippedCards, failedCards };
@@ -457,6 +625,15 @@ export async function runIncrementalFileSync(
 	const deckName = ankiDeckNameForMarkdownFile(vault, file, settings.defaultBasicDeckPrefix);
 	const newKeySet = new Set(cards.map((c) => cardStateKey(deckName, c.front)));
 
+	// Also add occlusion card keys so that removed masks are cleaned up correctly
+	const occlusionBlocks = extractOcclusionBlocksFromContent(content, file.path);
+	for (const block of occlusionBlocks) {
+		const blockHash = occlusionBlockContentHash(block.image, block.header, block.masks);
+		for (const mask of block.masks) {
+			newKeySet.add(cardStateKey(deckName, occlusionCardTag(blockHash, mask.id)));
+		}
+	}
+
 	const oldKeys = previousState.fileCardKeys[file.path] ?? [];
 	const removedKeys = oldKeys.filter((k) => !newKeySet.has(k));
 	if (removedKeys.length > 0) {
@@ -483,7 +660,7 @@ export async function runIncrementalFileSync(
 		uploadedMedia,
 		debugLog,
 		(level, message) => log(level, message),
-		{ preExtractedCards: cards }
+		{ preExtractedCards: cards, preReadContent: content }
 	);
 
 	nextFileCardKeys[file.path] = perFile.fileKeys;

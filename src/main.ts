@@ -1,4 +1,4 @@
-import { Plugin, TAbstractFile, TFile } from "obsidian";
+import { MarkdownPostProcessorContext, Notice, Plugin, TAbstractFile, TFile } from "obsidian";
 import {
 	DEFAULT_SETTINGS,
 	type PluginSettings,
@@ -15,6 +15,15 @@ import {
 	type SyncProgress,
 	type SyncResult,
 } from "./syncEngine";
+import {
+	parseOcclusionSource,
+	serializeOcclusionBlock,
+	type OcclusionMask,
+} from "./imageOcclusionParser";
+import { ImageOcclusionModal } from "./imageOcclusionEditor";
+import { resolveImagePath } from "./parser";
+import { indexImageFiles } from "./vaultScanner";
+import { parseExcludedFolders } from "./settings";
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -61,8 +70,21 @@ export default class AnkiSyncPlugin extends Plugin {
 			name: "Open sync view",
 			callback: () => this.openSyncModal(),
 		});
+		this.addCommand({
+			id: "insert-image-occlusion",
+			name: "Insert image occlusion block",
+			editorCallback: (editor) => {
+				const template =
+					"```anki-occlusion\nimage: \nheader: \nmasks:\n```";
+				editor.replaceSelection(template);
+			},
+		});
 		this.addSettingTab(new AnkiSyncSettingTab(this.app, this));
 		this.setupStatusWidget();
+		this.registerMarkdownCodeBlockProcessor(
+			"anki-occlusion",
+			(source, el, ctx) => void this.renderOcclusionBlock(source, el, ctx)
+		);
 
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => this.onVaultFileChanged(file, "file modified"))
@@ -76,6 +98,114 @@ export default class AnkiSyncPlugin extends Plugin {
 		this.registerEvent(
 			this.app.vault.on("rename", (file, oldPath) => this.onVaultFileRenamed(file, oldPath))
 		);
+	}
+
+	// ── image occlusion code block processor ─────────────────────────────────
+
+	private async renderOcclusionBlock(
+		source: string,
+		el: HTMLElement,
+		ctx: MarkdownPostProcessorContext
+	): Promise<void> {
+		el.addClass("anki-occlusion-block");
+
+		const block = parseOcclusionSource(source, ctx.sourcePath);
+		if (!block) {
+			el.createEl("p", { text: "Anki occlusion: missing required 'image' key.", cls: "anki-occlusion-error" });
+			return;
+		}
+
+		const excludedFolders = parseExcludedFolders(this.settings.excludedFolderNames);
+		const imageIndex      = indexImageFiles(this.app.vault, this.settings.vaultRootSubpath, excludedFolders);
+		const imageFile       = resolveImagePath(block.image, {
+			vault:                this.app.vault,
+			metadataCache:        this.app.metadataCache,
+			sourcePath:           ctx.sourcePath,
+			imageIndex,
+			attachmentsFolderName: this.settings.attachmentsFolderName,
+		});
+
+		if (!imageFile) {
+			el.createEl("p", {
+				text: `Anki occlusion: image not found: "${block.image}"`,
+				cls: "anki-occlusion-error",
+			});
+			return;
+		}
+
+		// ── render preview ────────────────────────────────────────────────────
+		let imageData: ArrayBuffer;
+		try {
+			imageData = await this.app.vault.readBinary(imageFile);
+		} catch {
+			el.createEl("p", { text: "Anki occlusion: could not read image file.", cls: "anki-occlusion-error" });
+			return;
+		}
+
+		const wrap = el.createDiv({ cls: "anki-occlusion-preview-wrap" });
+
+		// Build a preview: image with SVG mask overlays using relative % coords
+		const blob       = new Blob([imageData]);
+		const objectUrl  = URL.createObjectURL(blob);
+		const container  = wrap.createDiv({ cls: "anki-occlusion-preview-container" });
+		const imgEl      = container.createEl("img", { cls: "anki-occlusion-preview-img" });
+		imgEl.src = objectUrl;
+		imgEl.onload = () => URL.revokeObjectURL(objectUrl);
+
+		if (block.masks.length > 0) {
+			const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+			svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+			svg.classList.add("anki-occlusion-preview-svg");
+			for (const m of block.masks) {
+				const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+				rect.setAttribute("x",      `${(m.x * 100).toFixed(2)}%`);
+				rect.setAttribute("y",      `${(m.y * 100).toFixed(2)}%`);
+				rect.setAttribute("width",  `${(m.width  * 100).toFixed(2)}%`);
+				rect.setAttribute("height", `${(m.height * 100).toFixed(2)}%`);
+				rect.setAttribute("fill",   "rgba(90,90,90,0.80)");
+				rect.setAttribute("stroke", "#444");
+				rect.setAttribute("stroke-width", "1");
+				svg.appendChild(rect);
+			}
+			container.appendChild(svg);
+		}
+
+		// Info line
+		const maskCount = block.masks.length;
+		wrap.createEl("p", {
+			text: `${maskCount === 0 ? "No masks yet" : `${maskCount} mask${maskCount !== 1 ? "s" : ""}`}${block.header ? ` — ${block.header}` : ""}`,
+			cls: "anki-occlusion-preview-info",
+		});
+
+		// Edit button
+		const editBtn = wrap.createEl("button", { text: "Edit occlusions", cls: "anki-occlusion-edit-btn" });
+		editBtn.addEventListener("click", () => {
+			new ImageOcclusionModal(
+				this.app,
+				imageData,
+				imageFile.name,
+				block.masks,
+				block.header,
+				(newHeader: string, newMasks: OcclusionMask[]) => {
+					const info       = ctx.getSectionInfo(el);
+					const activeEd   = this.app.workspace.activeEditor;
+					const editor     = activeEd && "editor" in activeEd
+						? (activeEd as { editor?: { replaceRange(text: string, from: { line: number; ch: number }, to: { line: number; ch: number }): void } }).editor
+						: undefined;
+					if (!info || !editor) {
+						new Notice("Could not find active editor — please switch to editing view and try again.");
+						return;
+					}
+					const newSource = serializeOcclusionBlock({ image: block.image, header: newHeader, masks: newMasks });
+					// Replace the content between the fence lines (lineStart+1 → lineEnd)
+					editor.replaceRange(
+						newSource + "\n",
+						{ line: info.lineStart + 1, ch: 0 },
+						{ line: info.lineEnd,       ch: 0 }
+					);
+				}
+			).open();
+		});
 	}
 
 	onunload() {

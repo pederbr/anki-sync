@@ -1,5 +1,7 @@
 import { TFile, type MetadataCache, type TAbstractFile, type Vault } from "obsidian";
 import MarkdownIt from "markdown-it";
+export { extractOcclusionBlocksFromContent } from "./imageOcclusionParser";
+export type { OcclusionBlock, OcclusionCard, OcclusionMask } from "./imageOcclusionParser";
 
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"]);
 const LATEX_PLACEHOLDER_PREFIX = "§§LATEX";

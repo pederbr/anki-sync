@@ -57,3 +57,121 @@
 .anki-note-sync-status-widget.is-error .anki-note-sync-status-text {
 	color: var(--text-error);
 }
+
+/* ── image occlusion code block preview ───────────────────────────────────── */
+
+.anki-occlusion-block {
+	padding: 4px 0;
+}
+
+.anki-occlusion-error {
+	color: var(--text-error);
+	font-size: var(--font-ui-small);
+}
+
+.anki-occlusion-preview-wrap {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.anki-occlusion-preview-container {
+	position: relative;
+	display: inline-block;
+	line-height: 0;
+}
+
+.anki-occlusion-preview-img {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	border-radius: 4px;
+}
+
+.anki-occlusion-preview-svg {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.anki-occlusion-preview-info {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.anki-occlusion-edit-btn {
+	align-self: flex-start;
+	font-size: var(--font-ui-small);
+}
+
+/* ── image occlusion modal ────────────────────────────────────────────────── */
+
+.anki-occlusion-modal .modal-content {
+	padding: 16px 20px 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.anki-occlusion-modal h2 {
+	margin: 0 0 4px;
+	font-size: var(--font-ui-medium);
+}
+
+.anki-occlusion-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.anki-occlusion-header-input {
+	flex: 1;
+}
+
+.anki-occlusion-canvas-wrap {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	overflow: hidden;
+	line-height: 0;
+}
+
+.anki-occlusion-canvas {
+	display: block;
+	touch-action: none;
+	user-select: none;
+}
+
+.anki-occlusion-mask-row {
+	flex-wrap: wrap;
+}
+
+.anki-occlusion-label-input {
+	flex: 1;
+	min-width: 120px;
+}
+
+.anki-occlusion-delete-btn {
+	color: var(--text-error);
+}
+
+.anki-occlusion-delete-btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.anki-occlusion-tip {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+.anki-occlusion-footer {
+	display: flex;
+	gap: 8px;
+	padding-top: 4px;
+}

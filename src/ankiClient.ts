@@ -343,6 +343,40 @@ export async function appendBasic(
 	}
 }
 
+/**
+ * Upsert an image occlusion card identified by a unique tag rather than by the
+ * Front field text (which contains an `<img>` reference, making text search
+ * unreliable across Anki versions).
+ *
+ * @param uniqueTag  A tag like `anki-occ-{blockHash}-{maskId}` that must be
+ *                   unique across the whole collection.
+ */
+export async function upsertOcclusionCard(
+	config: AnkiClientConfig,
+	uniqueTag: string,
+	front: string,
+	back: string,
+	deck: string,
+	tags: string[]
+): Promise<number> {
+	const auth: AnkiConnectAuth = { baseUrl: config.baseUrl, apiKey: config.apiKey };
+	await ensureDeck(auth, deck);
+
+	// Locate any existing note by its unique tag
+	const query   = `tag:"${uniqueTag}"`;
+	const noteIds = await invokeAuth<number[]>(auth, "findNotes", { query });
+	if (noteIds.length > 0) {
+		const existingId = noteIds[0]!;
+		await updateNoteFields(auth, existingId, { Front: front, Back: back });
+		const allTags = [...new Set([...tags, uniqueTag])];
+		await addTagsToNotes(auth, [existingId], allTags.join(" "));
+		return existingId;
+	}
+
+	const allTags = [...new Set([...tags, uniqueTag])];
+	return addNote(auth, deck, config.basicModel, { Front: front, Back: back }, allTags);
+}
+
 export async function storeMediaFile(
 	auth: AnkiConnectAuth,
 	filename: string,
